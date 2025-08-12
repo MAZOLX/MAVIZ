@@ -19,133 +19,125 @@
       background-color: #f5f7fa;
     }
     #logo {
-      height: 80px;
+      height: 100px;
       margin: 20px auto;
       display: block;
     }
-    #wallet-status {
-      padding: 12px;
-      background: #f0f0f0;
-      border-radius: 8px;
+    #wallet-options {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
       margin: 20px 0;
-      font-weight: bold;
     }
-    .connected {
-      color: var(--accent);
-    }
-    #connect-btn {
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 12px 24px;
+    .wallet-btn {
+      padding: 12px;
       border-radius: 8px;
-      font-size: 16px;
+      border: none;
       cursor: pointer;
-      margin: 10px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    #metamask-btn {
+      background: #f6851b;
+      color: white;
+    }
+    #walletconnect-btn {
+      background: #3b99fc;
+      color: white;
     }
     #purchase-section {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      margin-top: 20px;
       display: none;
-    }
-    #amount {
-      padding: 12px;
-      width: 100%;
-      margin: 10px 0;
-      border: 1px solid #ddd;
-      border-radius: 8px;
+      margin-top: 30px;
     }
   </style>
 </head>
 <body>
-  <!-- Logo with forced cache refresh -->
-  <img id="logo" src="https://i.imgur.com/LTxf9cS.png?v=3" alt="MAVIZ Logo" 
-       onerror="this.src='https://i.imgur.com/LTxf9cS.png'">
+  <!-- Logo with direct URL -->
+  <img id="logo" src="https://i.imgur.com/VbxvCK6.jpeg" alt="MAVIZ Logo" 
+       onerror="this.src='https://i.imgur.com/VbxvCK6.jpeg'">
 
-  <div id="wallet-status">MetaMask Not Connected</div>
   <button id="connect-btn">Connect Wallet</button>
+
+  <div id="wallet-options">
+    <button id="metamask-btn">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" width="20" alt="">
+      MetaMask
+    </button>
+    <button id="walletconnect-btn">
+      <img src="https://avatars.githubusercontent.com/u/37784886" width="20" alt="">
+      WalletConnect
+    </button>
+  </div>
 
   <div id="purchase-section">
     <h2>Purchase MVZx Tokens</h2>
-    <input type="number" id="amount" placeholder="Enter amount in Naira (min 2000)" min="2000">
-    <button id="buy-btn" style="background:var(--accent)">Purchase</button>
+    <input type="number" id="amount" placeholder="Amount in Naira (min 2000)" min="2000">
+    <button id="buy-btn">Continue to Payment</button>
   </div>
 
   <script>
     // DOM Elements
     const connectBtn = document.getElementById('connect-btn');
-    const walletStatus = document.getElementById('wallet-status');
+    const walletOptions = document.getElementById('wallet-options');
+    const metamaskBtn = document.getElementById('metamask-btn');
+    const walletconnectBtn = document.getElementById('walletconnect-btn');
     const purchaseSection = document.getElementById('purchase-section');
-    const amountInput = document.getElementById('amount');
-    const buyBtn = document.getElementById('buy-btn');
 
-    // State
-    let provider, signer, userAddress;
+    // 1. Show wallet options immediately
+    connectBtn.addEventListener('click', () => {
+      connectBtn.style.display = 'none';
+      walletOptions.style.display = 'flex';
+    });
 
-    // 1. Wallet Connection
-    connectBtn.addEventListener('click', async () => {
-      if (window.ethereum) {
-        try {
-          connectBtn.textContent = "Connecting...";
-          
-          // Request account access
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          userAddress = accounts[0];
-          
-          // Initialize ethers
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          signer = provider.getSigner();
-          
-          // Update UI
-          walletStatus.textContent = `Connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
-          walletStatus.classList.add('connected');
-          purchaseSection.style.display = 'block';
-          connectBtn.textContent = 'Connected';
-          connectBtn.style.background = 'var(--accent)';
-          
-          // Initialize MLM components
-          initMLM();
-          
-        } catch (error) {
-          walletStatus.textContent = `Error: ${error.message}`;
-          connectBtn.textContent = 'Connect Wallet';
-        }
-      } else {
-        walletStatus.textContent = 'Please install MetaMask!';
-        window.open('https://metamask.io', '_blank');
+    // 2. MetaMask Connection
+    metamaskBtn.addEventListener('click', async () => {
+      if (!window.ethereum) {
+        window.open('https://metamask.io/download.html', '_blank');
+        return;
+      }
+
+      try {
+        const accounts = await window.ethereum.request({ 
+          method: 'eth_requestAccounts' 
+        });
+        
+        // Connected - show purchase section
+        walletOptions.style.display = 'none';
+        purchaseSection.style.display = 'block';
+        
+        // Initialize MLM logic
+        initMLM();
+
+      } catch (error) {
+        alert(`Connection failed: ${error.message}`);
       }
     });
 
-    // 2. MLM Initialization
+    // 3. WalletConnect Connection
+    walletconnectBtn.addEventListener('click', async () => {
+      alert("WalletConnect integration would go here");
+      // Similar flow to MetaMask
+    });
+
+    // 4. MLM Purchase Logic
     function initMLM() {
-      // Enable purchase input
-      amountInput.disabled = false;
-      
-      // Set up purchase handler
-      buyBtn.addEventListener('click', async () => {
-        const amount = parseFloat(amountInput.value);
+      document.getElementById('buy-btn').addEventListener('click', () => {
+        const amount = parseFloat(document.getElementById('amount').value);
         if (amount < 2000) {
           alert('Minimum purchase is ₦2000');
           return;
         }
         
-        try {
-          buyBtn.textContent = "Processing...";
-          
-          // Process purchase (example)
-          const slots = Math.floor(amount / 2000);
-          const remainder = amount % 2000;
-          
-          walletStatus.textContent = `Purchased ${slots} slots + ${remainder}₦ MVZx`;
-          
-        } catch (error) {
-          walletStatus.textContent = `Purchase failed: ${error.message}`;
-        } finally {
-          buyBtn.textContent = "Purchase";
-        }
+        // Calculate slots (₦2000 increments)
+        const slots = Math.floor(amount / 2000);
+        const remainder = amount % 2000;
+        
+        alert(`Will purchase ${slots} slots + credit ₦${remainder} as MVZx`);
+        
+        // Redirect to Flutterwave payment
+        // window.location.href = `/pay?amount=${amount}`;
       });
     }
   </script>
