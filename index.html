@@ -1,367 +1,311 @@
-<!-- index.html - Updated Frontend -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MZLx - Airdrop & Mining</title>
+  <title>MAVIZ - MLM Platform</title>
   <style>
-    body {
+    :root {
+      --primary: #4a6bff;
+      --secondary: #f8f9fa;
+      --accent: #17c964;
+      --text: #333;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #f5f7fa;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 20px;
-      background: #f5f5f5;
+      padding: 2rem;
     }
-    .header {
-      text-align: center;
-      margin-bottom: 40px;
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
     }
     .card {
       background: white;
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 2rem;
+      margin-bottom: 2rem;
     }
-    .btn {
-      background: #4CAF50;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
+    h1, h2, h3 {
+      color: var(--primary);
+      margin-bottom: 1rem;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
       font-size: 16px;
     }
-    .btn:hover {
-      background: #45a049;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    input {
-      padding: 10px;
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-    }
-    .value-display {
-      font-weight: bold;
-      color: #2196F3;
-    }
-    .tab-container {
-      display: flex;
-      margin-bottom: 20px;
-    }
-    .tab {
-      padding: 10px 20px;
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
       cursor: pointer;
-      border-bottom: 2px solid transparent;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.3s ease;
     }
-    .tab.active {
-      border-bottom: 2px solid #4CAF50;
-      font-weight: bold;
+    button:hover {
+      background-color: #3a5bef;
+      transform: translateY(-2px);
+    }
+    .position-option {
+      display: flex;
+      align-items: center;
+      margin: 12px 0;
+    }
+    .position-option select {
+      width: auto;
+      margin-left: 12px;
+    }
+    .hidden {
+      display: none;
+    }
+    #wallet-status {
+      font-weight: 600;
+      color: var(--accent);
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Welcome to MZLx Platform</h1>
-    <p>Get started with free airdrop and mining rewards!</p>
-  </div>
+  <div class="container">
+    <header>
+      <h1>MAVIZ MLM Platform</h1>
+      <div id="wallet-status">Not connected</div>
+    </header>
 
-  <div class="tab-container">
-    <div class="tab active" onclick="showTab('airdrop')">Airdrop</div>
-    <div class="tab" onclick="showTab('mining')">Mining</div>
-    <div class="tab" onclick="showTab('purchase')">Purchase</div>
-    <div class="tab" onclick="showTab('convert')">Convert</div>
-  </div>
-
-  <!-- Airdrop Tab -->
-  <div id="airdrop-tab" class="tab-content">
     <div class="card">
-      <h2>Claim Your Free Airdrop</h2>
-      <p>Get <span class="value-display">500 MZLx (~₦750 / $0.50)</span> instantly!</p>
-      
-      <div class="form-group">
-        <input type="text" id="airdrop-wallet" placeholder="Enter your wallet address">
+      <h2>Purchase MVZx Tokens</h2>
+      <p>Minimum purchase: ₦2,000 (1 slot)</p>
+
+      <div class="purchase-method">
+        <h3>Automatic Placement</h3>
+        <p>System will optimally position your slots</p>
+        <input type="number" id="auto-amount" min="2000" step="100" placeholder="Enter amount in Naira">
+        <button id="btn-auto">Purchase Automatically</button>
       </div>
-      <button class="btn" onclick="claimAirdrop()">Claim Airdrop</button>
-      <p id="airdrop-status"></p>
+
+      <div class="divider" style="margin: 2rem 0; text-align: center;">OR</div>
+
+      <div class="purchase-method">
+        <h3>Manual Placement</h3>
+        <p>Choose specific positions for each slot</p>
+        <input type="number" id="manual-amount" min="2000" step="100" placeholder="Enter amount in Naira">
+        <button id="btn-configure">Configure Positions</button>
+        
+        <div id="position-config" class="hidden">
+          <h4>Slot Positions</h4>
+          <div id="position-options"></div>
+          <button id="btn-confirm">Confirm Purchase</button>
+        </div>
+      </div>
     </div>
 
     <div class="card">
-      <h3>Share & Earn More</h3>
-      <p>Share your referral link to earn 10% of your friends' rewards</p>
-      <div id="referral-link">Connect wallet to generate link</div>
-      <button class="btn" onclick="copyReferral()">Copy Link</button>
-    </div>
-  </div>
-
-  <!-- Mining Tab -->
-  <div id="mining-tab" class="tab-content" style="display:none">
-    <div class="card">
-      <h2>Start Mining MZLx</h2>
-      <p>Earn <span class="value-display">50 MZLx/hour (~₦75 / $0.05)</span> just by keeping this tab open</p>
-      
-      <div class="form-group">
-        <input type="text" id="mining-wallet" placeholder="Enter your wallet address">
-      </div>
-      <button class="btn" id="mining-btn" onclick="startMining()">Start Mining</button>
-      <div id="mining-stats" style="margin-top: 20px; display: none;">
-        <p>Mining: <span id="mining-amount">0</span> MZLx</p>
-        <p>Value: <span id="mining-value">₦0 (~$0)</span></p>
-        <button class="btn" onclick="claimMining()">Claim Now</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Purchase Tab -->
-  <div id="purchase-tab" class="tab-content" style="display:none">
-    <div class="card">
-      <h2>Purchase MZLx Tokens</h2>
-      <p>Minimum purchase: <span class="value-display">₦2,000 (~1.33 USDT)</span></p>
-      
-      <div class="form-group">
-        <label>Amount in Naira</label>
-        <input type="number" id="naira-amount" placeholder="₦2000 minimum">
-      </div>
-      <p>≈ <span id="usdt-equivalent">0 USDT</span></p>
-      <button class="btn" onclick="purchaseWithNaira()">Pay with Flutterwave</button>
-      
-      <div style="margin: 20px 0; text-align: center;">OR</div>
-      
-      <div class="form-group">
-        <label>Amount in USDT</label>
-        <input type="number" id="usdt-amount" placeholder="1.33 USDT minimum" step="0.01">
-      </div>
-      <p>≈ <span id="naira-equivalent">₦0</span></p>
-      <button class="btn" onclick="purchaseWithUsdt()">Pay with USDT</button>
-    </div>
-  </div>
-
-  <!-- Convert Tab -->
-  <div id="convert-tab" class="tab-content" style="display:none">
-    <div class="card">
-      <h2>Currency Conversion</h2>
-      <p>2% conversion fee applies</p>
-      
-      <div class="form-group">
-        <label>USDT to Naira</label>
-        <input type="number" id="usdt-to-ngn" placeholder="USDT amount">
-        <button class="btn" onclick="convertUsdtToNaira()">Convert</button>
-        <p>Result: <span id="usdt-to-ngn-result">₦0</span></p>
-      </div>
-      
-      <div class="form-group">
-        <label>Naira to USDT</label>
-        <input type="number" id="ngn-to-usdt" placeholder="Naira amount">
-        <button class="btn" onclick="convertNairaToUsdt()">Convert</button>
-        <p>Result: <span id="ngn-to-usdt-result">0 USDT</span></p>
+      <h2>Your Network</h2>
+      <div id="network-view">
+        <p>Connect wallet to view your slots</p>
       </div>
     </div>
   </div>
 
   <script>
-    // Tab navigation
-    function showTab(tabName) {
-      document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.style.display = 'none';
-      });
-      document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
-      });
-      
-      document.getElementById(`${tabName}-tab`).style.display = 'block';
-      event.currentTarget.classList.add('active');
-    }
+    // Global State
+    let currentWallet = null;
+    let currentPin = null;
 
-    // Airdrop function
-    async function claimAirdrop() {
-      const walletAddress = document.getElementById('airdrop-wallet').value;
-      if (!walletAddress) {
-        alert('Please enter wallet address');
-        return;
-      }
-      
-      try {
-        const response = await fetch('/api/airdrop', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress })
-        });
-        
-        const result = await response.json();
-        if (result.success) {
-          document.getElementById('airdrop-status').innerHTML = `
-            Success! ${result.amount} (${result.nairaValue}) claimed<br>
-            TX: <a href="#" target="_blank">${result.txHash.substring(0, 20)}...</a>
-          `;
-        } else {
-          alert(result.error);
-        }
-      } catch (error) {
-        alert('Claim failed: ' + error.message);
-      }
-    }
+    // DOM Elements
+    const walletStatus = document.getElementById('wallet-status');
+    const btnAuto = document.getElementById('btn-auto');
+    const btnConfigure = document.getElementById('btn-configure');
+    const btnConfirm = document.getElementById('btn-confirm');
+    const positionConfig = document.getElementById('position-config');
+    const positionOptions = document.getElementById('position-options');
 
-    // Mining functions
-    let miningInterval;
-    let currentSessionId;
-    
-    async function startMining() {
-      const walletAddress = document.getElementById('mining-wallet').value;
-      if (!walletAddress) {
-        alert('Please enter wallet address');
-        return;
-      }
-      
-      try {
-        const response = await fetch('/api/mining/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress })
-        });
-        
-        const result = await response.json();
-        currentSessionId = result.sessionId;
-        
-        document.getElementById('mining-btn').style.display = 'none';
-        const statsEl = document.getElementById('mining-stats');
-        statsEl.style.display = 'block';
-        
-        // Update mining stats every minute
-        let minutes = 0;
-        miningInterval = setInterval(() => {
-          minutes++;
-          const mzlx = Math.floor(minutes * 50 / 60);
-          const naira = mzlx * 1.5;
-          const usdt = naira / 1500;
+    // Event Listeners
+    btnAuto.addEventListener('click', purchaseAuto);
+    btnConfigure.addEventListener('click', configurePositions);
+    btnConfirm.addEventListener('click', purchaseManual);
+
+    // Connect Wallet (Mock - integrate your actual wallet connection)
+    async function connectWallet() {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          currentWallet = accounts[0];
+          walletStatus.textContent = `Connected: ${currentWallet.substring(0, 6)}...${currentWallet.substring(38)}`;
           
-          document.getElementById('mining-amount').textContent = mzlx;
-          document.getElementById('mining-value').textContent = 
-            `₦${naira.toFixed(2)} (~$${usdt.toFixed(4)})`;
-        }, 60000);
-      } catch (error) {
-        alert('Mining start failed: ' + error.message);
-      }
-    }
-    
-    async function claimMining() {
-      if (!currentSessionId) return;
-      
-      clearInterval(miningInterval);
-      
-      try {
-        const response = await fetch('/api/mining/claim', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: currentSessionId })
-        });
-        
-        const result = await response.json();
-        alert(`Success! Claimed ${result.amount} (${result.nairaValue})`);
-        document.getElementById('mining-stats').style.display = 'none';
-        document.getElementById('mining-btn').style.display = 'block';
-      } catch (error) {
-        alert('Claim failed: ' + error.message);
+          // Prompt for PIN (in production, use secure auth flow)
+          currentPin = prompt('Enter your 4-digit PIN');
+          if (!currentPin || currentPin.length !== 4) {
+            alert('Invalid PIN');
+            currentWallet = null;
+            walletStatus.textContent = 'Not connected';
+          }
+        } catch (error) {
+          console.error('Wallet connection error:', error);
+        }
+      } else {
+        alert('Please install MetaMask or another Web3 wallet');
       }
     }
 
-    // Purchase functions
-    function updateConversion() {
-      const nairaAmount = parseFloat(document.getElementById('naira-amount').value) || 0;
-      const usdtAmount = parseFloat(document.getElementById('usdt-amount').value) || 0;
-      
-      document.getElementById('usdt-equivalent').textContent = 
-        (nairaAmount / 1500 * 0.98).toFixed(4) + ' USDT';
-      document.getElementById('naira-equivalent').textContent = 
-        '₦' + (usdtAmount * 1500 * 0.98).toFixed(2);
-    }
-    
-    document.getElementById('naira-amount').addEventListener('input', updateConversion);
-    document.getElementById('usdt-amount').addEventListener('input', updateConversion);
-    
-    async function purchaseWithNaira() {
-      const amount = parseFloat(document.getElementById('naira-amount').value);
+    // Automatic Purchase
+    async function purchaseAuto() {
+      if (!currentWallet) {
+        await connectWallet();
+        if (!currentWallet) return;
+      }
+
+      const amount = parseFloat(document.getElementById('auto-amount').value);
       if (amount < 2000) {
         alert('Minimum purchase is ₦2,000');
         return;
       }
-      
+
       try {
-        const response = await fetch('/api/purchase/naira', {
+        const response = await fetch('/api/purchase/auto', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount, email: prompt('Enter your email') })
+          body: JSON.stringify({
+            amount,
+            wallet: currentWallet,
+            pin: currentPin
+          })
         });
-        
+
         const result = await response.json();
         if (result.success) {
-          window.open(result.paymentLink, '_blank');
+          alert(`Success! Purchased ${result.slotsPurchased} slots and credited ${result.mvzxCredited} MVZx`);
+          updateNetworkView();
         } else {
-          alert(result.error);
+          alert(`Error: ${result.error}`);
         }
       } catch (error) {
         alert('Purchase failed: ' + error.message);
       }
     }
-    
-    async function purchaseWithUsdt() {
-      const amount = parseFloat(document.getElementById('usdt-amount').value);
-      if (amount < 1.33) {
-        alert('Minimum purchase is 1.33 USDT (~₦2,000)');
+
+    // Manual Position Configuration
+    function configurePositions() {
+      if (!currentWallet) {
+        connectWallet();
         return;
       }
-      
+
+      const amount = parseFloat(document.getElementById('manual-amount').value);
+      const slotCount = Math.floor(amount / 2000);
+
+      if (amount < 2000) {
+        alert('Minimum purchase is ₦2,000');
+        return;
+      }
+
+      positionOptions.innerHTML = '';
+      for (let i = 0; i < slotCount; i++) {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'position-option';
+        optionDiv.innerHTML = `
+          <label>Slot ${i + 1}:</label>
+          <select id="slot-${i}">
+            <option value="auto">Auto (Recommended)</option>
+            <option value="left">Left Leg</option>
+            <option value="right">Right Leg</option>
+          </select>
+        `;
+        positionOptions.appendChild(optionDiv);
+      }
+
+      positionConfig.classList.remove('hidden');
+    }
+
+    // Manual Purchase Execution
+    async function purchaseManual() {
+      const amount = parseFloat(document.getElementById('manual-amount').value);
+      const slotCount = Math.floor(amount / 2000);
+      const positions = [];
+
+      for (let i = 0; i < slotCount; i++) {
+        const select = document.getElementById(`slot-${i}`);
+        positions.push(select.value === 'auto' ? null : select.value);
+      }
+
       try {
-        const response = await fetch('/api/purchase/usdt', {
+        const response = await fetch('/api/purchase/manual', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            walletAddress: prompt('Enter your wallet address'),
-            usdtAmount: amount
+          body: JSON.stringify({
+            amount,
+            wallet: currentWallet,
+            pin: currentPin,
+            positions
           })
         });
-        
+
         const result = await response.json();
-        alert(result.message);
+        if (result.success) {
+          alert(`Success! Purchased ${result.slotsPurchased} slots at your chosen positions and credited ${result.mvzxCredited} MVZx`);
+          positionConfig.classList.add('hidden');
+          updateNetworkView();
+        } else {
+          alert(`Error: ${result.error}`);
+        }
       } catch (error) {
         alert('Purchase failed: ' + error.message);
       }
     }
 
-    // Conversion functions
-    async function convertUsdtToNaira() {
-      const amount = parseFloat(document.getElementById('usdt-to-ngn').value);
-      if (!amount) return;
-      
-      const response = await fetch('/api/convert/usdt-to-ngn', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usdtAmount: amount })
-      });
-      
-      const result = await response.json();
-      document.getElementById('usdt-to-ngn-result').textContent = 
-        `₦${result.nairaAmount}`;
+    // Network Visualization
+    async function updateNetworkView() {
+      if (!currentWallet) return;
+
+      try {
+        const response = await fetch(`/api/user/slots?wallet=${currentWallet}`);
+        const data = await response.json();
+        
+        // Render tree visualization (simplified)
+        let html = '<h3>Your Slots</h3><ul>';
+        data.slots.forEach(slot => {
+          html += `<li>Level ${slot.level} - ${slot.position} leg</li>`;
+        });
+        html += '</ul>';
+
+        document.getElementById('network-view').innerHTML = html;
+      } catch (error) {
+        console.error('Failed to load network:', error);
+      }
     }
-    
-    async function convertNairaToUsdt() {
-      const amount = parseFloat(document.getElementById('ngn-to-usdt').value);
-      if (!amount) return;
-      
-      const response = await fetch('/api/convert/ngn-to-usdt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nairaAmount: amount })
-      });
-      
-      const result = await response.json();
-      document.getElementById('ngn-to-usdt-result').textContent = 
-        `${result.usdtAmount} USDT`;
-    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check for wallet connection
+      if (typeof window.ethereum !== 'undefined') {
+        window.ethereum.on('accountsChanged', (accounts) => {
+          if (accounts.length === 0) {
+            currentWallet = null;
+            walletStatus.textContent = 'Not connected';
+          }
+        });
+      }
+    });
   </script>
 </body>
 </html>
