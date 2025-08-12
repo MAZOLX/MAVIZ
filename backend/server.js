@@ -1,261 +1,111 @@
-// server.js - Updated Backend
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { ethers } = require('ethers');
-const axios = require('axios');
-const Flutterwave = require('flutterwave-node-v3');
+ import express from 'express';
+import { ethers } from 'ethers';
+import mongoose from 'mongoose';
+import Joi from '@hapi/joi';
+import Flutterwave from 'flutterwave-node-v3';
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// ===== UPDATED CONFIGURATION ===== //
-const BNB_RPC_URL = process.env.BNB_RPC_URL || 'https://bsc-dataseed1.defibit.io';
-const MZLX_ADDRESS = process.env.MZLX_ADDRESS || '0x49F4a728BD98480E92dBfc6a82d595DA9d1F7b83';
-const USDT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
-const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
-const COMPANY_WALLET = process.env.COMPANY_WALLET;
-const FLW_PUBLIC_KEY = process.env.FLW_PUBLIC_KEY;
-const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
-
-// Initialize Flutterwave
-const flw = new Flutterwave(FLW_PUBLIC_KEY, FLW_SECRET_KEY);
-
-// Exchange rates (would use API in production)
-const EXCHANGE_RATES = {
-  USDT_TO_NGN: 1500, // 1 USDT = ₦1500
-  CONVERSION_FEE: 0.02 // 2%
-};
-
-// Validate private key
-if (!ADMIN_PRIVATE_KEY || !/^[0-9a-fA-F]{64}$/.test(ADMIN_PRIVATE_KEY)) {
-  console.error('ERROR: Invalid private key format');
-  process.exit(1);
-}
-
-// Setup
-const provider = new ethers.JsonRpcProvider(BNB_RPC_URL);
-const adminWallet = new ethers.Wallet(ADMIN_PRIVATE_KEY, provider);
-
-// Contracts
-const mzlxContract = new ethers.Contract(MZLX_ADDRESS, [
-  "function transfer(address to, uint256 amount) public returns (bool)",
-  "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)"
-], adminWallet);
-
-const usdtContract = new ethers.Contract(USDT_ADDRESS, [
-  "function transfer(address to, uint256 amount) public returns (bool)",
-  "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)"
-], adminWallet);
-
-// MLM Configuration (Naira based)
-const MLM_CONFIG = {
-  stages: 10,
-  legs: 62, // 2x5 binary
-  entryFee: 2000, // ₦2000 minimum
-  mcPercentage: 16.2,
-  nspPercentage: 5,
-  lqPercentage: 5,
-  crFixed: 6000, // ₦6000
-  jbPercentage: 10, // Only stage 1
-  stageCaps: { // In Naira
-    8: 10000000, // ₦10M
-    9: 11000000, // ₦11M
-    10: 12000000 // ₦12M
-  }
-};
-
-// Database simulation
-const users = new Map();
-const airdropClaims = new Set();
-const miningSessions = new Map();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// ===== HELPER FUNCTIONS ===== //
-function convertToNaira(usdtAmount) {
-  return (usdtAmount * EXCHANGE_RATES.USDT_TO_NGN * (1 - EXCHANGE_RATES.CONVERSION_FEE)).toFixed(2);
-}
-
-function convertToUsdt(nairaAmount) {
-  return (nairaAmount / EXCHANGE_RATES.USDT_TO_NGN * (1 - EXCHANGE_RATES.CONVERSION_FEE)).toFixed(6);
-}
-
-function calculateStagePayout(stage) {
-  if (stage === 1) {
-    const totalPool = MLM_CONFIG.entryFee * MLM_CONFIG.legs;
-    const mc = totalPool * (MLM_CONFIG.mcPercentage / 100);
-    const jb = totalPool * (MLM_CONFIG.jbPercentage / 100);
-    const nsp = totalPool * (MLM_CONFIG.nspPercentage / 100);
-    const lq = totalPool * (MLM_CONFIG.lqPercentage / 100);
-    const cp = totalPool - mc - jb - nsp - lq - MLM_CONFIG.crFixed;
-    
-    return {
-      totalPool,
-      mc,
-      jb,
-      nsp,
-      lq,
-      cr: MLM_CONFIG.crFixed,
-      cp
-    };
-  } else {
-    const prevStage = stageDB.get(stage - 1);
-    const totalPool = prevStage.nsp * MLM_CONFIG.legs;
-    
-    let mc = totalPool * (MLM_CONFIG.mcPercentage / 100);
-    if (stage >= 8) mc = Math.min(mc, MLM_CONFIG.stageCaps[stage]);
-    
-    const nsp = totalPool * (MLM_CONFIG.nspPercentage / 100);
-    const lq = totalPool * (MLM_CONFIG.lqPercentage / 100);
-    const cp = totalPool - mc - nsp - lq - MLM_CONFIG.crFixed;
-    
-    // Send excess to company
-    if (stage >= 8 && mc === MLM_CONFIG.stageCaps[stage]) {
-      const excess = totalPool - mc - nsp - lq - MLM_CONFIG.crFixed;
-      companyEarnings += excess;
-    }
-    
-    return { totalPool, mc, jb: 0, nsp, lq, cr: MLM_CONFIG.crFixed, cp };
-  }
-}
-
-// ===== ROUTES ===== //
-
-// Airdrop Endpoint
-app.post('/api/airdrop', async (req, res) => {
-  const { walletAddress } = req.body;
-  
-  if (!ethers.isAddress(walletAddress)) {
-    return res.status(400).json({ error: 'Invalid wallet address' });
-  }
-  
-  if (airdropClaims.has(walletAddress)) {
-    return res.status(400).json({ error: 'Airdrop already claimed' });
-  }
-  
-  // Award 500 MZLx (~₦750)
-  const amount = ethers.parseUnits("500", 18);
-  
-  try {
-    const tx = await mzlxContract.transfer(walletAddress, amount);
-    airdropClaims.add(walletAddress);
-    
-    res.json({
-      success: true,
-      message: 'Airdrop claimed successfully!',
-      txHash: tx.hash,
-      amount: "500 MZLx",
-      nairaValue: "₦750",
-      usdtValue: "0.5 USDT"
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to process airdrop' });
-  }
+// Database Models
+const SlotSchema = new mongoose.Schema({
+  owner: { type: String, required: true },
+  position: { type: String, enum: ['left', 'right'], required: true },
+  parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Slot' },
+  children: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Slot' }],
+  level: { type: Number, default: 1 }
 });
 
-// Mining Endpoint
-app.post('/api/mining/start', async (req, res) => {
-  const { walletAddress } = req.body;
-  const sessionId = Date.now().toString();
+const UserSchema = new mongoose.Schema({
+  wallet: { type: String, unique: true },
+  pin: { type: String },
+  slots: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Slot' }],
+  balance: { type: Number, default: 0 }
+});
+
+const Slot = mongoose.model('Slot', SlotSchema);
+const User = mongoose.model('User', UserSchema);
+
+// Payment Processing
+async function processPayment(amount, userWallet, positionPreference = null) {
+  const slotCost = 2000; // ₦2000 per slot
+  const slotCount = Math.floor(amount / slotCost);
+  const remainingAmount = amount % slotCost;
   
-  miningSessions.set(sessionId, {
-    walletAddress,
-    startTime: Date.now(),
-    balance: 0
+  // 1. Process Slots First
+  const slots = [];
+  for (let i = 0; i < slotCount; i++) {
+    const slot = await createSlot(userWallet, positionPreference);
+    slots.push(slot);
+  }
+  
+  // 2. Process Remaining Balance
+  if (remainingAmount > 0) {
+    const tokenAmount = convertNairaToMvzx(remainingAmount);
+    await creditUserWallet(userWallet, tokenAmount);
+  }
+  
+  return { slots, remainingAmount };
+}
+
+async function createSlot(owner, position = null) {
+  // Automatic positioning logic
+  if (!position) {
+    position = await determineOptimalPosition(owner);
+  }
+  
+  // Find parent based on spillover/spillunder
+  const parent = await findAvailableParent(position);
+  
+  const newSlot = new Slot({
+    owner,
+    position,
+    parent: parent?._id,
+    level: parent ? parent.level + 1 : 1
   });
+  
+  await newSlot.save();
+  
+  // Update parent's children
+  if (parent) {
+    parent.children.push(newSlot._id);
+    await parent.save();
+  }
+  
+  return newSlot;
+}
+
+// Position Determination Logic
+async function determineOptimalPosition(owner) {
+  // Check user's existing slots for balance
+  const userSlots = await Slot.find({ owner });
+  
+  const leftCount = userSlots.filter(s => s.position === 'left').length;
+  const rightCount = userSlots.filter(s => s.position === 'right').length;
+  
+  return leftCount <= rightCount ? 'left' : 'right';
+}
+
+async function findAvailableParent(position) {
+  // Find the first available parent with < 2 children in the requested position
+  return await Slot.findOne({
+    [`children.${position}`]: { $size: 0 }
+  }).sort({ level: 1 });
+}
+
+// Manual Placement Endpoint
+app.post('/api/purchase/manual', async (req, res) => {
+  const { amount, wallet, pin, positions } = req.body;
+  
+  // Validate positions array matches slot count
+  const slotCount = Math.floor(amount / 2000);
+  if (positions && positions.length !== slotCount) {
+    return res.status(400).json({ error: 'Position count mismatch' });
+  }
+  
+  const result = await processPayment(amount, wallet, positions);
   
   res.json({
     success: true,
-    sessionId,
-    message: 'Mining session started',
-    rate: '50 MZLx/hour (~₦75)'
+    purchasedSlots: result.slots.length,
+    remainingCredit: result.remainingAmount,
+    mvzxCredited: convertNairaToMvzx(result.remainingAmount)
   });
-});
-
-app.post('/api/mining/claim', async (req, res) => {
-  const { sessionId } = req.body;
-  const session = miningSessions.get(sessionId);
-  
-  if (!session) {
-    return res.status(404).json({ error: 'Invalid session' });
-  }
-  
-  const hours = (Date.now() - session.startTime) / (1000 * 60 * 60);
-  const amount = Math.floor(hours * 50); // 50 MZLx/hour
-  
-  try {
-    const tx = await mzlxContract.transfer(session.walletAddress, ethers.parseUnits(amount.toString(), 18));
-    miningSessions.delete(sessionId);
-    
-    res.json({
-      success: true,
-      amount: `${amount} MZLx`,
-      nairaValue: `₦${amount * 1.5}`,
-      usdtValue: `${(amount * 1.5 / EXCHANGE_RATES.USDT_TO_NGN).toFixed(4)} USDT`,
-      txHash: tx.hash
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Claim failed' });
-  }
-});
-
-// Purchase Endpoints
-app.post('/api/purchase/usdt', async (req, res) => {
-  const { walletAddress, usdtAmount } = req.body;
-  const nairaAmount = convertToNaira(usdtAmount);
-  
-  if (nairaAmount < MLM_CONFIG.entryFee) {
-    return res.status(400).json({ 
-      error: `Minimum purchase is ₦${MLM_CONFIG.entryFee} (${convertToUsdt(MLM_CONFIG.entryFee)} USDT)`
-    });
-  }
-  
-  // Process purchase and MLM rewards...
-});
-
-app.post('/api/purchase/naira', async (req, res) => {
-  const { amount, email } = req.body;
-  
-  if (amount < MLM_CONFIG.entryFee) {
-    return res.status(400).json({ 
-      error: `Minimum purchase is ₦${MLM_CONFIG.entryFee}`
-    });
-  }
-  
-  // Process Flutterwave payment...
-});
-
-// Conversion Endpoints
-app.post('/api/convert/usdt-to-ngn', async (req, res) => {
-  const { usdtAmount } = req.body;
-  const nairaAmount = convertToNaira(usdtAmount);
-  
-  res.json({
-    usdtAmount,
-    nairaAmount,
-    fee: `${EXCHANGE_RATES.CONVERSION_FEE * 100}%`,
-    rate: `1 USDT = ₦${EXCHANGE_RATES.USDT_TO_NGN}`
-  });
-});
-
-app.post('/api/convert/ngn-to-usdt', async (req, res) => {
-  const { nairaAmount } = req.body;
-  const usdtAmount = convertToUsdt(nairaAmount);
-  
-  res.json({
-    nairaAmount,
-    usdtAmount,
-    fee: `${EXCHANGE_RATES.CONVERSION_FEE * 100}%`,
-    rate: `₦${EXCHANGE_RATES.USDT_TO_NGN} = 1 USDT`
-  });
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 });
