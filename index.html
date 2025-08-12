@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MAVIZ - MLM Liquidity Platform</title>
+  <title>MAVIZ - MLM Platform</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
@@ -184,6 +184,20 @@
       justify-content: center;
       color: #666;
     }
+    .status-message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      display: none;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
   </style>
 </head>
 <body>
@@ -191,7 +205,7 @@
     <!-- Header with Logo -->
     <header>
       <div class="logo-container">
-        <img src="https://i.imgur.com/LTxf9cS.png" class="logo" alt="MAVIZ Logo">
+        <img src="https://i.imgur.com/LTxf9cS.png" class="logo" alt="MAVIZ Logo" onerror="this.src='https://via.placeholder.com/50?text=MAVIZ'">
         <span class="logo-text">MAVIZ</span>
       </div>
       <div id="wallet-display" class="wallet-status wallet-disconnected">
@@ -222,6 +236,9 @@
       </div>
     </div>
 
+    <!-- Status Messages -->
+    <div id="status-message" class="status-message"></div>
+
     <!-- Main Content -->
     <div class="card">
       <h2 class="card-title">Purchase MVZx Tokens</h2>
@@ -230,8 +247,8 @@
           <label for="purchase-amount">Amount (₦)</label>
           <input type="number" id="purchase-amount" min="2000" step="100" placeholder="2000">
         </div>
-        <button id="auto-purchase" class="action-btn">Auto Purchase</button>
-        <button id="manual-purchase" class="action-btn">Manual Placement</button>
+        <button id="auto-purchase" class="action-btn" disabled>Auto Purchase</button>
+        <button id="manual-purchase" class="action-btn" disabled>Manual Placement</button>
       </div>
     </div>
 
@@ -255,84 +272,120 @@
     const autoPurchaseBtn = document.getElementById('auto-purchase');
     const manualPurchaseBtn = document.getElementById('manual-purchase');
     const networkView = document.getElementById('network-view');
+    const statusMessage = document.getElementById('status-message');
 
     // State
     let currentAccount = null;
     let currentProvider = null;
+    let currentSigner = null;
 
-    // Open modal
-    connectBtn.addEventListener('click', () => {
+    // Initialize
+    disablePurchaseUI();
+
+    // Event Listeners
+    connectBtn.addEventListener('click', showWalletModal);
+    closeModal.addEventListener('click', hideWalletModal);
+    metamaskOption.addEventListener('click', connectMetaMask);
+    walletConnectOption.addEventListener('click', connectWalletConnect);
+    autoPurchaseBtn.addEventListener('click', handleAutoPurchase);
+    manualPurchaseBtn.addEventListener('click', handleManualPurchase);
+
+    // Functions
+    function showWalletModal() {
       walletModal.style.display = 'flex';
-    });
+    }
 
-    // Close modal
-    closeModal.addEventListener('click', () => {
+    function hideWalletModal() {
       walletModal.style.display = 'none';
-    });
+    }
 
-    // MetaMask connection
-    metamaskOption.addEventListener('click', async () => {
-      if (window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ 
-            method: 'eth_requestAccounts' 
-          });
-          currentAccount = accounts[0];
-          currentProvider = new ethers.providers.Web3Provider(window.ethereum);
-          
-          updateWalletDisplay(currentAccount);
-          walletModal.style.display = 'none';
-          enablePurchaseUI();
-          
-          // Listen for account changes
-          window.ethereum.on('accountsChanged', (accounts) => {
-            currentAccount = accounts[0] || null;
-            updateWalletDisplay(currentAccount);
-          });
-          
-        } catch (error) {
-          alert(`MetaMask connection failed: ${error.message}`);
-        }
-      } else {
-        alert('Please install MetaMask from https://metamask.io');
+    async function connectMetaMask() {
+      if (!window.ethereum) {
+        showError('MetaMask not installed!');
         window.open('https://metamask.io', '_blank');
+        return;
       }
-    });
 
-    // WalletConnect connection
-    walletConnectOption.addEventListener('click', async () => {
-      const provider = new WalletConnectProvider.default({
-        rpc: { 
-          56: "https://bsc-dataseed.binance.org/" // BSC Mainnet
-        }
-      });
-      
       try {
-        await provider.enable();
-        currentProvider = new ethers.providers.Web3Provider(provider);
-        const signer = currentProvider.getSigner();
-        currentAccount = await signer.getAddress();
-        
-        updateWalletDisplay(currentAccount);
-        walletModal.style.display = 'none';
-        enablePurchaseUI();
-        
-        provider.on("accountsChanged", (accounts) => {
-          currentAccount = accounts[0] || null;
-          updateWalletDisplay(currentAccount);
+        const accounts = await window.ethereum.request({ 
+          method: 'eth_requestAccounts' 
         });
         
+        currentProvider = new ethers.providers.Web3Provider(window.ethereum);
+        currentSigner = currentProvider.getSigner();
+        currentAccount = accounts[0];
+        
+        updateWalletDisplay();
+        enablePurchaseUI();
+        hideWalletModal();
+        showSuccess('MetaMask connected successfully!');
+        
+        // Set up event listeners
+        window.ethereum.on('accountsChanged', handleAccountsChanged);
+        window.ethereum.on('chainChanged', handleChainChanged);
+        
       } catch (error) {
-        alert(`WalletConnect failed: ${error.message}`);
+        showError(`MetaMask connection failed: ${error.message}`);
       }
-    });
+    }
 
-    // Update wallet display
-    function updateWalletDisplay(address) {
-      if (address) {
+    async function connectWalletConnect() {
+      try {
+        const provider = new WalletConnectProvider.default({
+          rpc: { 
+            56: "https://bsc-dataseed.binance.org/" // BSC Mainnet
+          },
+          chainId: 56
+        });
+        
+        await provider.enable();
+        currentProvider = new ethers.providers.Web3Provider(provider);
+        currentSigner = currentProvider.getSigner();
+        currentAccount = await currentSigner.getAddress();
+        
+        updateWalletDisplay();
+        enablePurchaseUI();
+        hideWalletModal();
+        showSuccess('WalletConnect connected successfully!');
+        
+        // Set up event listeners
+        provider.on("accountsChanged", handleAccountsChanged);
+        provider.on("chainChanged", handleChainChanged);
+        
+      } catch (error) {
+        showError(`WalletConnect failed: ${error.message}`);
+      }
+    }
+
+    function handleAccountsChanged(accounts) {
+      if (accounts.length === 0) {
+        // Wallet disconnected
+        resetConnection();
+        showError('Wallet disconnected');
+      } else {
+        currentAccount = accounts[0];
+        updateWalletDisplay();
+      }
+    }
+
+    function handleChainChanged(chainId) {
+      // Reload page when network changes
+      window.location.reload();
+    }
+
+    function resetConnection() {
+      currentAccount = null;
+      currentProvider = null;
+      currentSigner = null;
+      updateWalletDisplay();
+      disablePurchaseUI();
+    }
+
+    function updateWalletDisplay() {
+      if (currentAccount) {
         walletDisplay.innerHTML = `
           <i class="fas fa-wallet wallet-connected"></i>
-          <span>${address.substring(0, 6)}...${address.substring(38)}</span>
+          <span>${currentAccount.substring(0, 6)}...${currentAccount.substring(38)}</span>
         `;
         walletDisplay.classList.add('wallet-connected');
         walletDisplay.classList.remove('wallet-disconnected');
@@ -346,7 +399,6 @@
       }
     }
 
-    // Enable purchase UI
     function enablePurchaseUI() {
       purchaseAmount.disabled = false;
       autoPurchaseBtn.disabled = false;
@@ -359,53 +411,120 @@
       `;
     }
 
-    // Disable purchase UI
     function disablePurchaseUI() {
       purchaseAmount.disabled = true;
       autoPurchaseBtn.disabled = true;
       manualPurchaseBtn.disabled = true;
+      networkView.innerHTML = `
+        <p>Connect your wallet to view your network</p>
+      `;
     }
 
-    // Initialize
-    disablePurchaseUI();
+    function showSuccess(message) {
+      statusMessage.textContent = message;
+      statusMessage.className = 'status-message success';
+      statusMessage.style.display = 'block';
+      setTimeout(() => {
+        statusMessage.style.display = 'none';
+      }, 5000);
+    }
 
-    // Purchase handlers
-    autoPurchaseBtn.addEventListener('click', async () => {
+    function showError(message) {
+      statusMessage.textContent = message;
+      statusMessage.className = 'status-message error';
+      statusMessage.style.display = 'block';
+      setTimeout(() => {
+        statusMessage.style.display = 'none';
+      }, 5000);
+    }
+
+    async function handleAutoPurchase() {
       if (!currentAccount) {
-        alert('Please connect your wallet first');
+        showError('Please connect your wallet first');
         return;
       }
       
       const amount = parseFloat(purchaseAmount.value);
-      if (amount < 2000) {
-        alert('Minimum purchase is ₦2000');
+      if (isNaN(amount) || amount < 2000) {
+        showError('Minimum purchase is ₦2000');
         return;
       }
-      
+
       try {
-        // Your purchase logic here
-        alert(`Processing purchase of ₦${amount}...`);
+        showSuccess('Processing purchase...');
         
-      } catch (error) {
-        alert(`Purchase failed: ${error.message}`);
-      }
-    });
+        // Example: Send transaction to backend
+        const response = await fetch('/api/purchase/auto', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet: currentAccount,
+            amount: amount,
+            type: 'auto'
+          }),
+        });
 
-    manualPurchaseBtn.addEventListener('click', async () => {
+        const result = await response.json();
+        
+        if (response.ok) {
+          showSuccess(`Success! ${result.message}`);
+          // Update UI with new balance/network
+        } else {
+          showError(result.error || 'Purchase failed');
+        }
+      } catch (error) {
+        showError(`Transaction failed: ${error.message}`);
+      }
+    }
+
+    async function handleManualPurchase() {
       if (!currentAccount) {
-        alert('Please connect your wallet first');
+        showError('Please connect your wallet first');
         return;
       }
       
       const amount = parseFloat(purchaseAmount.value);
-      if (amount < 2000) {
-        alert('Minimum purchase is ₦2000');
+      if (isNaN(amount) || amount < 2000) {
+        showError('Minimum purchase is ₦2000');
         return;
       }
-      
-      // Your manual placement logic here
-      alert(`Manual placement for ₦${amount} will be implemented next`);
-    });
+
+      try {
+        showSuccess('Processing manual placement...');
+        
+        // Example: Send transaction to backend
+        const response = await fetch('/api/purchase/manual', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet: currentAccount,
+            amount: amount,
+            type: 'manual'
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+          showSuccess(`Success! ${result.message}`);
+          // Update UI with new network positions
+        } else {
+          showError(result.error || 'Purchase failed');
+        }
+      } catch (error) {
+        showError(`Transaction failed: ${error.message}`);
+      }
+    }
+
+    // Initialize network check
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+    }
   </script>
 </body>
 </html>
