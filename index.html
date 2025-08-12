@@ -1,530 +1,120 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MAVIZ - MLM Platform</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
   <style>
     :root {
       --primary: #4a6bff;
-      --secondary: #f8f9fa;
-      --accent: #17c964;
       --text: #333;
-      --border: #e1e1e1;
-    }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     body {
-      background-color: #f5f7fa;
-      color: var(--text);
-      line-height: 1.6;
-    }
-    .container {
-      max-width: 1200px;
+      font-family: Arial, sans-serif;
+      max-width: 800px;
       margin: 0 auto;
       padding: 20px;
     }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30px;
-      padding-bottom: 15px;
-      border-bottom: 1px solid var(--border);
-    }
-    .logo-container {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    }
-    .logo {
-      width: 50px;
-      height: 50px;
-      object-fit: contain;
-    }
-    .logo-text {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--primary);
-    }
-    .wallet-status {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--secondary);
-      padding: 10px 15px;
-      border-radius: 30px;
-      font-weight: 600;
-    }
-    .wallet-connected {
-      color: var(--accent);
-    }
-    .wallet-disconnected {
-      color: #ff6b6b;
-    }
-    .connect-btn {
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 30px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.3s;
-    }
-    .connect-btn:hover {
-      background: #3a5bef;
-      transform: translateY(-2px);
-    }
-    .card {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      padding: 30px;
-      margin-bottom: 30px;
-    }
-    .card-title {
-      font-size: 20px;
+    #logo {
+      height: 60px;
       margin-bottom: 20px;
-      color: var(--primary);
     }
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-content {
-      background: white;
-      padding: 30px;
-      border-radius: 16px;
-      width: 400px;
-      max-width: 90%;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-    }
-    .wallet-option {
-      display: flex;
-      align-items: center;
-      padding: 15px;
+    #wallet-status {
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 5px;
       margin: 10px 0;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
     }
-    .wallet-option:hover {
-      border-color: var(--primary);
-      background: #f8faff;
-    }
-    .wallet-icon {
-      width: 30px;
-      height: 30px;
-      margin-right: 15px;
-      object-fit: contain;
-    }
-    .close-modal {
-      display: block;
-      margin-top: 20px;
-      text-align: center;
-      color: #666;
-      cursor: pointer;
-    }
-    .purchase-section {
-      margin-top: 20px;
-    }
-    .input-group {
-      margin-bottom: 20px;
-    }
-    .input-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 600;
-    }
-    .input-group input {
+    input, button {
+      padding: 12px;
+      margin: 5px 0;
       width: 100%;
-      padding: 12px 15px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
       font-size: 16px;
     }
-    .action-btn {
-      width: 100%;
-      padding: 12px;
+    button {
       background: var(--primary);
       color: white;
       border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
       cursor: pointer;
-      margin-top: 10px;
-      transition: all 0.3s;
     }
-    .action-btn:hover {
-      background: #3a5bef;
-      transform: translateY(-2px);
-    }
-    .network-view {
-      min-height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #666;
-    }
-    .status-message {
-      padding: 15px;
-      border-radius: 8px;
-      margin-top: 20px;
-      display: none;
-    }
-    .success {
-      background: #d4edda;
-      color: #155724;
-    }
-    .error {
-      background: #f8d7da;
-      color: #721c24;
+    #purchase-section {
+      display: none; /* Hidden until wallet connects */
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Header with Logo -->
-    <header>
-      <div class="logo-container">
-        <img src="https://i.imgur.com/LTxf9cS.png" class="logo" alt="MAVIZ Logo" onerror="this.src='https://via.placeholder.com/50?text=MAVIZ'">
-        <span class="logo-text">MAVIZ</span>
-      </div>
-      <div id="wallet-display" class="wallet-status wallet-disconnected">
-        <i class="fas fa-wallet"></i>
-        <span>Not Connected</span>
-      </div>
-      <button id="connect-wallet" class="connect-btn">
-        Connect Wallet
-      </button>
-    </header>
-
-    <!-- Wallet Connection Modal -->
-    <div id="wallet-modal" class="modal">
-      <div class="modal-content">
-        <h2 style="margin-bottom: 20px; text-align: center;">Connect Wallet</h2>
-        
-        <div class="wallet-option" id="metamask-option">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" class="wallet-icon" alt="MetaMask">
-          <span>MetaMask</span>
-        </div>
-        
-        <div class="wallet-option" id="walletconnect-option">
-          <img src="https://avatars.githubusercontent.com/u/37784886" class="wallet-icon" alt="WalletConnect">
-          <span>WalletConnect</span>
-        </div>
-        
-        <span class="close-modal" id="close-modal">Cancel</span>
-      </div>
-    </div>
-
-    <!-- Status Messages -->
-    <div id="status-message" class="status-message"></div>
-
-    <!-- Main Content -->
-    <div class="card">
-      <h2 class="card-title">Purchase MVZx Tokens</h2>
-      <div class="purchase-section">
-        <div class="input-group">
-          <label for="purchase-amount">Amount (₦)</label>
-          <input type="number" id="purchase-amount" min="2000" step="100" placeholder="2000">
-        </div>
-        <button id="auto-purchase" class="action-btn" disabled>Auto Purchase</button>
-        <button id="manual-purchase" class="action-btn" disabled>Manual Placement</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2 class="card-title">Your Network</h2>
-      <div class="network-view" id="network-view">
-        <p>Connect your wallet to view your network</p>
-      </div>
-    </div>
+  <img id="logo" src="https://i.imgur.com/LTxf9cS.png" alt="MAVIZ Logo" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x60?text=MAVIZ+LOGO'">
+  
+  <div id="wallet-status">Wallet not connected</div>
+  <button id="connect-btn">Connect Wallet</button>
+  
+  <div id="purchase-section">
+    <h2>Purchase MVZx Tokens</h2>
+    <input type="number" id="amount" placeholder="Enter amount in Naira (min 2000)" min="2000">
+    <button id="buy-btn">Purchase</button>
   </div>
 
   <script>
     // DOM Elements
-    const walletModal = document.getElementById('wallet-modal');
-    const connectBtn = document.getElementById('connect-wallet');
-    const closeModal = document.getElementById('close-modal');
-    const metamaskOption = document.getElementById('metamask-option');
-    const walletConnectOption = document.getElementById('walletconnect-option');
-    const walletDisplay = document.getElementById('wallet-display');
-    const purchaseAmount = document.getElementById('purchase-amount');
-    const autoPurchaseBtn = document.getElementById('auto-purchase');
-    const manualPurchaseBtn = document.getElementById('manual-purchase');
-    const networkView = document.getElementById('network-view');
-    const statusMessage = document.getElementById('status-message');
+    const connectBtn = document.getElementById('connect-btn');
+    const walletStatus = document.getElementById('wallet-status');
+    const purchaseSection = document.getElementById('purchase-section');
+    const amountInput = document.getElementById('amount');
+    const buyBtn = document.getElementById('buy-btn');
 
     // State
-    let currentAccount = null;
-    let currentProvider = null;
-    let currentSigner = null;
+    let provider, signer, userAddress;
 
-    // Initialize
-    disablePurchaseUI();
-
-    // Event Listeners
-    connectBtn.addEventListener('click', showWalletModal);
-    closeModal.addEventListener('click', hideWalletModal);
-    metamaskOption.addEventListener('click', connectMetaMask);
-    walletConnectOption.addEventListener('click', connectWalletConnect);
-    autoPurchaseBtn.addEventListener('click', handleAutoPurchase);
-    manualPurchaseBtn.addEventListener('click', handleManualPurchase);
-
-    // Functions
-    function showWalletModal() {
-      walletModal.style.display = 'flex';
-    }
-
-    function hideWalletModal() {
-      walletModal.style.display = 'none';
-    }
-
-    async function connectMetaMask() {
-      if (!window.ethereum) {
-        showError('MetaMask not installed!');
-        window.open('https://metamask.io', '_blank');
-        return;
-      }
-
-      try {
-        const accounts = await window.ethereum.request({ 
-          method: 'eth_requestAccounts' 
-        });
-        
-        currentProvider = new ethers.providers.Web3Provider(window.ethereum);
-        currentSigner = currentProvider.getSigner();
-        currentAccount = accounts[0];
-        
-        updateWalletDisplay();
-        enablePurchaseUI();
-        hideWalletModal();
-        showSuccess('MetaMask connected successfully!');
-        
-        // Set up event listeners
-        window.ethereum.on('accountsChanged', handleAccountsChanged);
-        window.ethereum.on('chainChanged', handleChainChanged);
-        
-      } catch (error) {
-        showError(`MetaMask connection failed: ${error.message}`);
-      }
-    }
-
-    async function connectWalletConnect() {
-      try {
-        const provider = new WalletConnectProvider.default({
-          rpc: { 
-            56: "https://bsc-dataseed.binance.org/" // BSC Mainnet
-          },
-          chainId: 56
-        });
-        
-        await provider.enable();
-        currentProvider = new ethers.providers.Web3Provider(provider);
-        currentSigner = currentProvider.getSigner();
-        currentAccount = await currentSigner.getAddress();
-        
-        updateWalletDisplay();
-        enablePurchaseUI();
-        hideWalletModal();
-        showSuccess('WalletConnect connected successfully!');
-        
-        // Set up event listeners
-        provider.on("accountsChanged", handleAccountsChanged);
-        provider.on("chainChanged", handleChainChanged);
-        
-      } catch (error) {
-        showError(`WalletConnect failed: ${error.message}`);
-      }
-    }
-
-    function handleAccountsChanged(accounts) {
-      if (accounts.length === 0) {
-        // Wallet disconnected
-        resetConnection();
-        showError('Wallet disconnected');
+    // 1. Wallet Connection
+    connectBtn.addEventListener('click', async () => {
+      if (window.ethereum) {
+        try {
+          // Request account access
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          userAddress = accounts[0];
+          
+          // Initialize ethers
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+          
+          // Update UI
+          walletStatus.textContent = `Connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
+          purchaseSection.style.display = 'block';
+          connectBtn.textContent = 'Connected';
+          connectBtn.style.background = '#4CAF50';
+          
+        } catch (error) {
+          walletStatus.textContent = `Error: ${error.message}`;
+        }
       } else {
-        currentAccount = accounts[0];
-        updateWalletDisplay();
+        walletStatus.textContent = 'Please install MetaMask!';
       }
-    }
+    });
 
-    function handleChainChanged(chainId) {
-      // Reload page when network changes
-      window.location.reload();
-    }
-
-    function resetConnection() {
-      currentAccount = null;
-      currentProvider = null;
-      currentSigner = null;
-      updateWalletDisplay();
-      disablePurchaseUI();
-    }
-
-    function updateWalletDisplay() {
-      if (currentAccount) {
-        walletDisplay.innerHTML = `
-          <i class="fas fa-wallet wallet-connected"></i>
-          <span>${currentAccount.substring(0, 6)}...${currentAccount.substring(38)}</span>
-        `;
-        walletDisplay.classList.add('wallet-connected');
-        walletDisplay.classList.remove('wallet-disconnected');
-      } else {
-        walletDisplay.innerHTML = `
-          <i class="fas fa-wallet"></i>
-          <span>Not Connected</span>
-        `;
-        walletDisplay.classList.remove('wallet-connected');
-        walletDisplay.classList.add('wallet-disconnected');
-      }
-    }
-
-    function enablePurchaseUI() {
-      purchaseAmount.disabled = false;
-      autoPurchaseBtn.disabled = false;
-      manualPurchaseBtn.disabled = false;
-      networkView.innerHTML = `
-        <div style="text-align: center;">
-          <h3>Your MLM Network</h3>
-          <p>Loading your slots and referrals...</p>
-        </div>
-      `;
-    }
-
-    function disablePurchaseUI() {
-      purchaseAmount.disabled = true;
-      autoPurchaseBtn.disabled = true;
-      manualPurchaseBtn.disabled = true;
-      networkView.innerHTML = `
-        <p>Connect your wallet to view your network</p>
-      `;
-    }
-
-    function showSuccess(message) {
-      statusMessage.textContent = message;
-      statusMessage.className = 'status-message success';
-      statusMessage.style.display = 'block';
-      setTimeout(() => {
-        statusMessage.style.display = 'none';
-      }, 5000);
-    }
-
-    function showError(message) {
-      statusMessage.textContent = message;
-      statusMessage.className = 'status-message error';
-      statusMessage.style.display = 'block';
-      setTimeout(() => {
-        statusMessage.style.display = 'none';
-      }, 5000);
-    }
-
-    async function handleAutoPurchase() {
-      if (!currentAccount) {
-        showError('Please connect your wallet first');
+    // 2. Purchase Functionality
+    buyBtn.addEventListener('click', async () => {
+      const amount = parseFloat(amountInput.value);
+      if (amount < 2000) {
+        alert('Minimum purchase is ₦2000');
         return;
       }
       
-      const amount = parseFloat(purchaseAmount.value);
-      if (isNaN(amount) || amount < 2000) {
-        showError('Minimum purchase is ₦2000');
-        return;
-      }
-
       try {
-        showSuccess('Processing purchase...');
-        
-        // Example: Send transaction to backend
-        const response = await fetch('/api/purchase/auto', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            wallet: currentAccount,
-            amount: amount,
-            type: 'auto'
-          }),
+        // Simple mock transaction
+        const tx = await signer.sendTransaction({
+          to: "0x000000000000000000000000000000000000dEaD", // Burn address for demo
+          value: ethers.utils.parseEther("0.001") // 0.001 BNB
         });
-
-        const result = await response.json();
         
-        if (response.ok) {
-          showSuccess(`Success! ${result.message}`);
-          // Update UI with new balance/network
-        } else {
-          showError(result.error || 'Purchase failed');
-        }
+        walletStatus.textContent = `Transaction sent: ${tx.hash}`;
       } catch (error) {
-        showError(`Transaction failed: ${error.message}`);
+        walletStatus.textContent = `Error: ${error.message}`;
       }
-    }
+    });
 
-    async function handleManualPurchase() {
-      if (!currentAccount) {
-        showError('Please connect your wallet first');
-        return;
-      }
-      
-      const amount = parseFloat(purchaseAmount.value);
-      if (isNaN(amount) || amount < 2000) {
-        showError('Minimum purchase is ₦2000');
-        return;
-      }
-
-      try {
-        showSuccess('Processing manual placement...');
-        
-        // Example: Send transaction to backend
-        const response = await fetch('/api/purchase/manual', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            wallet: currentAccount,
-            amount: amount,
-            type: 'manual'
-          }),
-        });
-
-        const result = await response.json();
-        
-        if (response.ok) {
-          showSuccess(`Success! ${result.message}`);
-          // Update UI with new network positions
-        } else {
-          showError(result.error || 'Purchase failed');
-        }
-      } catch (error) {
-        showError(`Transaction failed: ${error.message}`);
-      }
-    }
-
-    // Initialize network check
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
-    }
+    // Auto-enable input when wallet connects
+    amountInput.disabled = true;
   </script>
 </body>
 </html>
