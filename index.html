@@ -3,13 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MAVIZ - MLM Platform</title>
+  <title>MAVIZ - MLM Liquidity Platform</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
   <style>
     :root {
       --primary: #4a6bff;
       --secondary: #f8f9fa;
       --accent: #17c964;
       --text: #333;
+      --border: #e1e1e1;
     }
     * {
       box-sizing: border-box;
@@ -25,286 +29,382 @@
     .container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 2rem;
+      padding: 20px;
     }
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 2rem;
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .logo {
+      width: 50px;
+      height: 50px;
+      object-fit: contain;
+    }
+    .logo-text {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .wallet-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--secondary);
+      padding: 10px 15px;
+      border-radius: 30px;
+      font-weight: 600;
+    }
+    .wallet-connected {
+      color: var(--accent);
+    }
+    .wallet-disconnected {
+      color: #ff6b6b;
+    }
+    .connect-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    .connect-btn:hover {
+      background: #3a5bef;
+      transform: translateY(-2px);
     }
     .card {
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      padding: 2rem;
-      margin-bottom: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 30px;
+      margin-bottom: 30px;
     }
-    h1, h2, h3 {
+    .card-title {
+      font-size: 20px;
+      margin-bottom: 20px;
       color: var(--primary);
-      margin-bottom: 1rem;
     }
-    input, select {
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 16px;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
     }
-    button {
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: 600;
-      transition: all 0.3s ease;
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      width: 400px;
+      max-width: 90%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     }
-    button:hover {
-      background-color: #3a5bef;
-      transform: translateY(-2px);
-    }
-    .position-option {
+    .wallet-option {
       display: flex;
       align-items: center;
-      margin: 12px 0;
+      padding: 15px;
+      margin: 10px 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
-    .position-option select {
-      width: auto;
-      margin-left: 12px;
+    .wallet-option:hover {
+      border-color: var(--primary);
+      background: #f8faff;
     }
-    .hidden {
-      display: none;
+    .wallet-icon {
+      width: 30px;
+      height: 30px;
+      margin-right: 15px;
+      object-fit: contain;
     }
-    #wallet-status {
+    .close-modal {
+      display: block;
+      margin-top: 20px;
+      text-align: center;
+      color: #666;
+      cursor: pointer;
+    }
+    .purchase-section {
+      margin-top: 20px;
+    }
+    .input-group {
+      margin-bottom: 20px;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 8px;
       font-weight: 600;
-      color: var(--accent);
+    }
+    .input-group input {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    .action-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: all 0.3s;
+    }
+    .action-btn:hover {
+      background: #3a5bef;
+      transform: translateY(-2px);
+    }
+    .network-view {
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
     }
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- Header with Logo -->
     <header>
-      <h1>MAVIZ MLM Platform</h1>
-      <div id="wallet-status">Not connected</div>
+      <div class="logo-container">
+        <img src="https://i.imgur.com/LTxf9cS.png" class="logo" alt="MAVIZ Logo">
+        <span class="logo-text">MAVIZ</span>
+      </div>
+      <div id="wallet-display" class="wallet-status wallet-disconnected">
+        <i class="fas fa-wallet"></i>
+        <span>Not Connected</span>
+      </div>
+      <button id="connect-wallet" class="connect-btn">
+        Connect Wallet
+      </button>
     </header>
 
-    <div class="card">
-      <h2>Purchase MVZx Tokens</h2>
-      <p>Minimum purchase: ₦2,000 (1 slot)</p>
-
-      <div class="purchase-method">
-        <h3>Automatic Placement</h3>
-        <p>System will optimally position your slots</p>
-        <input type="number" id="auto-amount" min="2000" step="100" placeholder="Enter amount in Naira">
-        <button id="btn-auto">Purchase Automatically</button>
-      </div>
-
-      <div class="divider" style="margin: 2rem 0; text-align: center;">OR</div>
-
-      <div class="purchase-method">
-        <h3>Manual Placement</h3>
-        <p>Choose specific positions for each slot</p>
-        <input type="number" id="manual-amount" min="2000" step="100" placeholder="Enter amount in Naira">
-        <button id="btn-configure">Configure Positions</button>
+    <!-- Wallet Connection Modal -->
+    <div id="wallet-modal" class="modal">
+      <div class="modal-content">
+        <h2 style="margin-bottom: 20px; text-align: center;">Connect Wallet</h2>
         
-        <div id="position-config" class="hidden">
-          <h4>Slot Positions</h4>
-          <div id="position-options"></div>
-          <button id="btn-confirm">Confirm Purchase</button>
+        <div class="wallet-option" id="metamask-option">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" class="wallet-icon" alt="MetaMask">
+          <span>MetaMask</span>
         </div>
+        
+        <div class="wallet-option" id="walletconnect-option">
+          <img src="https://avatars.githubusercontent.com/u/37784886" class="wallet-icon" alt="WalletConnect">
+          <span>WalletConnect</span>
+        </div>
+        
+        <span class="close-modal" id="close-modal">Cancel</span>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="card">
+      <h2 class="card-title">Purchase MVZx Tokens</h2>
+      <div class="purchase-section">
+        <div class="input-group">
+          <label for="purchase-amount">Amount (₦)</label>
+          <input type="number" id="purchase-amount" min="2000" step="100" placeholder="2000">
+        </div>
+        <button id="auto-purchase" class="action-btn">Auto Purchase</button>
+        <button id="manual-purchase" class="action-btn">Manual Placement</button>
       </div>
     </div>
 
     <div class="card">
-      <h2>Your Network</h2>
-      <div id="network-view">
-        <p>Connect wallet to view your slots</p>
+      <h2 class="card-title">Your Network</h2>
+      <div class="network-view" id="network-view">
+        <p>Connect your wallet to view your network</p>
       </div>
     </div>
   </div>
 
   <script>
-    // Global State
-    let currentWallet = null;
-    let currentPin = null;
-
     // DOM Elements
-    const walletStatus = document.getElementById('wallet-status');
-    const btnAuto = document.getElementById('btn-auto');
-    const btnConfigure = document.getElementById('btn-configure');
-    const btnConfirm = document.getElementById('btn-confirm');
-    const positionConfig = document.getElementById('position-config');
-    const positionOptions = document.getElementById('position-options');
+    const walletModal = document.getElementById('wallet-modal');
+    const connectBtn = document.getElementById('connect-wallet');
+    const closeModal = document.getElementById('close-modal');
+    const metamaskOption = document.getElementById('metamask-option');
+    const walletConnectOption = document.getElementById('walletconnect-option');
+    const walletDisplay = document.getElementById('wallet-display');
+    const purchaseAmount = document.getElementById('purchase-amount');
+    const autoPurchaseBtn = document.getElementById('auto-purchase');
+    const manualPurchaseBtn = document.getElementById('manual-purchase');
+    const networkView = document.getElementById('network-view');
 
-    // Event Listeners
-    btnAuto.addEventListener('click', purchaseAuto);
-    btnConfigure.addEventListener('click', configurePositions);
-    btnConfirm.addEventListener('click', purchaseManual);
+    // State
+    let currentAccount = null;
+    let currentProvider = null;
 
-    // Connect Wallet (Mock - integrate your actual wallet connection)
-    async function connectWallet() {
-      if (typeof window.ethereum !== 'undefined') {
+    // Open modal
+    connectBtn.addEventListener('click', () => {
+      walletModal.style.display = 'flex';
+    });
+
+    // Close modal
+    closeModal.addEventListener('click', () => {
+      walletModal.style.display = 'none';
+    });
+
+    // MetaMask connection
+    metamaskOption.addEventListener('click', async () => {
+      if (window.ethereum) {
         try {
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          currentWallet = accounts[0];
-          walletStatus.textContent = `Connected: ${currentWallet.substring(0, 6)}...${currentWallet.substring(38)}`;
+          const accounts = await window.ethereum.request({ 
+            method: 'eth_requestAccounts' 
+          });
+          currentAccount = accounts[0];
+          currentProvider = new ethers.providers.Web3Provider(window.ethereum);
           
-          // Prompt for PIN (in production, use secure auth flow)
-          currentPin = prompt('Enter your 4-digit PIN');
-          if (!currentPin || currentPin.length !== 4) {
-            alert('Invalid PIN');
-            currentWallet = null;
-            walletStatus.textContent = 'Not connected';
-          }
+          updateWalletDisplay(currentAccount);
+          walletModal.style.display = 'none';
+          enablePurchaseUI();
+          
+          // Listen for account changes
+          window.ethereum.on('accountsChanged', (accounts) => {
+            currentAccount = accounts[0] || null;
+            updateWalletDisplay(currentAccount);
+          });
+          
         } catch (error) {
-          console.error('Wallet connection error:', error);
+          alert(`MetaMask connection failed: ${error.message}`);
         }
       } else {
-        alert('Please install MetaMask or another Web3 wallet');
+        alert('Please install MetaMask from https://metamask.io');
+        window.open('https://metamask.io', '_blank');
       }
-    }
+    });
 
-    // Automatic Purchase
-    async function purchaseAuto() {
-      if (!currentWallet) {
-        await connectWallet();
-        if (!currentWallet) return;
-      }
-
-      const amount = parseFloat(document.getElementById('auto-amount').value);
-      if (amount < 2000) {
-        alert('Minimum purchase is ₦2,000');
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/purchase/auto', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount,
-            wallet: currentWallet,
-            pin: currentPin
-          })
-        });
-
-        const result = await response.json();
-        if (result.success) {
-          alert(`Success! Purchased ${result.slotsPurchased} slots and credited ${result.mvzxCredited} MVZx`);
-          updateNetworkView();
-        } else {
-          alert(`Error: ${result.error}`);
+    // WalletConnect connection
+    walletConnectOption.addEventListener('click', async () => {
+      const provider = new WalletConnectProvider.default({
+        rpc: { 
+          56: "https://bsc-dataseed.binance.org/" // BSC Mainnet
         }
-      } catch (error) {
-        alert('Purchase failed: ' + error.message);
-      }
-    }
-
-    // Manual Position Configuration
-    function configurePositions() {
-      if (!currentWallet) {
-        connectWallet();
-        return;
-      }
-
-      const amount = parseFloat(document.getElementById('manual-amount').value);
-      const slotCount = Math.floor(amount / 2000);
-
-      if (amount < 2000) {
-        alert('Minimum purchase is ₦2,000');
-        return;
-      }
-
-      positionOptions.innerHTML = '';
-      for (let i = 0; i < slotCount; i++) {
-        const optionDiv = document.createElement('div');
-        optionDiv.className = 'position-option';
-        optionDiv.innerHTML = `
-          <label>Slot ${i + 1}:</label>
-          <select id="slot-${i}">
-            <option value="auto">Auto (Recommended)</option>
-            <option value="left">Left Leg</option>
-            <option value="right">Right Leg</option>
-          </select>
-        `;
-        positionOptions.appendChild(optionDiv);
-      }
-
-      positionConfig.classList.remove('hidden');
-    }
-
-    // Manual Purchase Execution
-    async function purchaseManual() {
-      const amount = parseFloat(document.getElementById('manual-amount').value);
-      const slotCount = Math.floor(amount / 2000);
-      const positions = [];
-
-      for (let i = 0; i < slotCount; i++) {
-        const select = document.getElementById(`slot-${i}`);
-        positions.push(select.value === 'auto' ? null : select.value);
-      }
-
+      });
+      
       try {
-        const response = await fetch('/api/purchase/manual', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount,
-            wallet: currentWallet,
-            pin: currentPin,
-            positions
-          })
-        });
-
-        const result = await response.json();
-        if (result.success) {
-          alert(`Success! Purchased ${result.slotsPurchased} slots at your chosen positions and credited ${result.mvzxCredited} MVZx`);
-          positionConfig.classList.add('hidden');
-          updateNetworkView();
-        } else {
-          alert(`Error: ${result.error}`);
-        }
-      } catch (error) {
-        alert('Purchase failed: ' + error.message);
-      }
-    }
-
-    // Network Visualization
-    async function updateNetworkView() {
-      if (!currentWallet) return;
-
-      try {
-        const response = await fetch(`/api/user/slots?wallet=${currentWallet}`);
-        const data = await response.json();
+        await provider.enable();
+        currentProvider = new ethers.providers.Web3Provider(provider);
+        const signer = currentProvider.getSigner();
+        currentAccount = await signer.getAddress();
         
-        // Render tree visualization (simplified)
-        let html = '<h3>Your Slots</h3><ul>';
-        data.slots.forEach(slot => {
-          html += `<li>Level ${slot.level} - ${slot.position} leg</li>`;
+        updateWalletDisplay(currentAccount);
+        walletModal.style.display = 'none';
+        enablePurchaseUI();
+        
+        provider.on("accountsChanged", (accounts) => {
+          currentAccount = accounts[0] || null;
+          updateWalletDisplay(currentAccount);
         });
-        html += '</ul>';
-
-        document.getElementById('network-view').innerHTML = html;
+        
       } catch (error) {
-        console.error('Failed to load network:', error);
+        alert(`WalletConnect failed: ${error.message}`);
       }
+    });
+
+    // Update wallet display
+    function updateWalletDisplay(address) {
+      if (address) {
+        walletDisplay.innerHTML = `
+          <i class="fas fa-wallet wallet-connected"></i>
+          <span>${address.substring(0, 6)}...${address.substring(38)}</span>
+        `;
+        walletDisplay.classList.add('wallet-connected');
+        walletDisplay.classList.remove('wallet-disconnected');
+      } else {
+        walletDisplay.innerHTML = `
+          <i class="fas fa-wallet"></i>
+          <span>Not Connected</span>
+        `;
+        walletDisplay.classList.remove('wallet-connected');
+        walletDisplay.classList.add('wallet-disconnected');
+      }
+    }
+
+    // Enable purchase UI
+    function enablePurchaseUI() {
+      purchaseAmount.disabled = false;
+      autoPurchaseBtn.disabled = false;
+      manualPurchaseBtn.disabled = false;
+      networkView.innerHTML = `
+        <div style="text-align: center;">
+          <h3>Your MLM Network</h3>
+          <p>Loading your slots and referrals...</p>
+        </div>
+      `;
+    }
+
+    // Disable purchase UI
+    function disablePurchaseUI() {
+      purchaseAmount.disabled = true;
+      autoPurchaseBtn.disabled = true;
+      manualPurchaseBtn.disabled = true;
     }
 
     // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      // Check for wallet connection
-      if (typeof window.ethereum !== 'undefined') {
-        window.ethereum.on('accountsChanged', (accounts) => {
-          if (accounts.length === 0) {
-            currentWallet = null;
-            walletStatus.textContent = 'Not connected';
-          }
-        });
+    disablePurchaseUI();
+
+    // Purchase handlers
+    autoPurchaseBtn.addEventListener('click', async () => {
+      if (!currentAccount) {
+        alert('Please connect your wallet first');
+        return;
       }
+      
+      const amount = parseFloat(purchaseAmount.value);
+      if (amount < 2000) {
+        alert('Minimum purchase is ₦2000');
+        return;
+      }
+      
+      try {
+        // Your purchase logic here
+        alert(`Processing purchase of ₦${amount}...`);
+        
+      } catch (error) {
+        alert(`Purchase failed: ${error.message}`);
+      }
+    });
+
+    manualPurchaseBtn.addEventListener('click', async () => {
+      if (!currentAccount) {
+        alert('Please connect your wallet first');
+        return;
+      }
+      
+      const amount = parseFloat(purchaseAmount.value);
+      if (amount < 2000) {
+        alert('Minimum purchase is ₦2000');
+        return;
+      }
+      
+      // Your manual placement logic here
+      alert(`Manual placement for ₦${amount} will be implemented next`);
     });
   </script>
 </body>
