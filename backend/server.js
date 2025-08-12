@@ -1,4 +1,4 @@
-require('dotenv').config();
+ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { ethers } = require('ethers');
@@ -7,42 +7,40 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// MLM Configuration
+const SLOT_COST = 2000; // ₦2000 per slot
+
 // Blockchain Setup
 const provider = new ethers.providers.JsonRpcProvider(process.env.BNB_RPC_URL);
 const wallet = new ethers.Wallet(process.env.ADMIN_PRIVATE_KEY, provider);
 
-// Mock Purchase Endpoint
+// MLM Endpoints
 app.post('/api/purchase', async (req, res) => {
   try {
     const { amount, userAddress } = req.body;
     
-    // Validate input
-    if (!amount || amount < 2000) {
-      return res.status(400).json({ error: "Minimum purchase is ₦2000" });
+    // Validate
+    if (amount < SLOT_COST) {
+      return res.status(400).json({ error: `Minimum purchase is ₦${SLOT_COST}` });
     }
+
+    // Process MLM slots
+    const slotCount = Math.floor(amount / SLOT_COST);
+    const remainder = amount % SLOT_COST;
     
     // Mock response
     res.json({
       success: true,
-      message: `Received ₦${amount} from ${userAddress}`,
-      txHash: "0x" + Math.random().toString(16).substr(2, 64) // Mock hash
+      slots: slotCount,
+      mvzxCredit: remainder * 0.0015, // 1 MVZx = ₦0.0015
+      message: `Allocated ${slotCount} slots + ${remainder}₦ MVZx credit`
     });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: "active",
-    network: await provider.getNetwork().then(n => n.name),
-    balance: await provider.getBalance(wallet.address) 
-  });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`MLM Server ready`);
 });
