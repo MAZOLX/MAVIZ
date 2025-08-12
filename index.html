@@ -1,58 +1,77 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MAVIZ - MLM Platform</title>
+  <title>MAVIZ MLM Platform</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
   <style>
     :root {
       --primary: #4a6bff;
-      --text: #333;
+      --accent: #17c964;
     }
     body {
       font-family: Arial, sans-serif;
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
+      text-align: center;
+      background-color: #f5f7fa;
     }
     #logo {
-      height: 60px;
-      margin-bottom: 20px;
+      height: 80px;
+      margin: 20px auto;
+      display: block;
     }
     #wallet-status {
-      padding: 10px;
-      background: #f0f0f0;
-      border-radius: 5px;
-      margin: 10px 0;
-    }
-    input, button {
       padding: 12px;
-      margin: 5px 0;
-      width: 100%;
-      font-size: 16px;
+      background: #f0f0f0;
+      border-radius: 8px;
+      margin: 20px 0;
+      font-weight: bold;
     }
-    button {
+    .connected {
+      color: var(--accent);
+    }
+    #connect-btn {
       background: var(--primary);
       color: white;
       border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
       cursor: pointer;
+      margin: 10px 0;
     }
     #purchase-section {
-      display: none; /* Hidden until wallet connects */
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-top: 20px;
+      display: none;
+    }
+    #amount {
+      padding: 12px;
+      width: 100%;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
-  <img id="logo" src="https://i.imgur.com/LTxf9cS.png" alt="MAVIZ Logo" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x60?text=MAVIZ+LOGO'">
-  
-  <div id="wallet-status">Wallet not connected</div>
+  <!-- Logo with forced cache refresh -->
+  <img id="logo" src="https://i.imgur.com/LTxf9cS.png?v=3" alt="MAVIZ Logo" 
+       onerror="this.src='https://i.imgur.com/LTxf9cS.png'">
+
+  <div id="wallet-status">MetaMask Not Connected</div>
   <button id="connect-btn">Connect Wallet</button>
-  
+
   <div id="purchase-section">
     <h2>Purchase MVZx Tokens</h2>
     <input type="number" id="amount" placeholder="Enter amount in Naira (min 2000)" min="2000">
-    <button id="buy-btn">Purchase</button>
+    <button id="buy-btn" style="background:var(--accent)">Purchase</button>
   </div>
 
   <script>
@@ -70,6 +89,8 @@
     connectBtn.addEventListener('click', async () => {
       if (window.ethereum) {
         try {
+          connectBtn.textContent = "Connecting...";
+          
           // Request account access
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
           userAddress = accounts[0];
@@ -80,41 +101,53 @@
           
           // Update UI
           walletStatus.textContent = `Connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
+          walletStatus.classList.add('connected');
           purchaseSection.style.display = 'block';
           connectBtn.textContent = 'Connected';
-          connectBtn.style.background = '#4CAF50';
+          connectBtn.style.background = 'var(--accent)';
+          
+          // Initialize MLM components
+          initMLM();
           
         } catch (error) {
           walletStatus.textContent = `Error: ${error.message}`;
+          connectBtn.textContent = 'Connect Wallet';
         }
       } else {
         walletStatus.textContent = 'Please install MetaMask!';
+        window.open('https://metamask.io', '_blank');
       }
     });
 
-    // 2. Purchase Functionality
-    buyBtn.addEventListener('click', async () => {
-      const amount = parseFloat(amountInput.value);
-      if (amount < 2000) {
-        alert('Minimum purchase is ₦2000');
-        return;
-      }
+    // 2. MLM Initialization
+    function initMLM() {
+      // Enable purchase input
+      amountInput.disabled = false;
       
-      try {
-        // Simple mock transaction
-        const tx = await signer.sendTransaction({
-          to: "0x000000000000000000000000000000000000dEaD", // Burn address for demo
-          value: ethers.utils.parseEther("0.001") // 0.001 BNB
-        });
+      // Set up purchase handler
+      buyBtn.addEventListener('click', async () => {
+        const amount = parseFloat(amountInput.value);
+        if (amount < 2000) {
+          alert('Minimum purchase is ₦2000');
+          return;
+        }
         
-        walletStatus.textContent = `Transaction sent: ${tx.hash}`;
-      } catch (error) {
-        walletStatus.textContent = `Error: ${error.message}`;
-      }
-    });
-
-    // Auto-enable input when wallet connects
-    amountInput.disabled = true;
+        try {
+          buyBtn.textContent = "Processing...";
+          
+          // Process purchase (example)
+          const slots = Math.floor(amount / 2000);
+          const remainder = amount % 2000;
+          
+          walletStatus.textContent = `Purchased ${slots} slots + ${remainder}₦ MVZx`;
+          
+        } catch (error) {
+          walletStatus.textContent = `Purchase failed: ${error.message}`;
+        } finally {
+          buyBtn.textContent = "Purchase";
+        }
+      });
+    }
   </script>
 </body>
 </html>
