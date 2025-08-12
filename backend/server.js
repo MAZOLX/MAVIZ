@@ -1,14 +1,20 @@
- import express from 'express';
-import mongoose from 'mongoose';
-import { ethers } from 'ethers';
-import Joi from '@hapi/joi';
-import Flutterwave from 'flutterwave-node-v3';
-import dotenv from 'dotenv';
+ require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { ethers } = require('ethers');
+const mongoose = require('mongoose');
+const Joi = require('joi');
 
-dotenv.config();
+// Initialize Express
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 // Database Connection
-mongoose.connect(process.env.MONGODB_URI);
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/maviz', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 
@@ -33,123 +39,111 @@ const UserSchema = new mongoose.Schema({
 const Slot = mongoose.model('Slot', SlotSchema);
 const User = mongoose.model('User', UserSchema);
 
-// App Setup
-const app = express();
-app.use(express.json());
-
-// Flutterwave Setup
-const flw = new Flutterwave(
-  process.env.FLW_PUBLIC_KEY,
-  process.env.FLW_SECRET_KEY
+// Blockchain Setup
+const provider = new ethers.providers.JsonRpcProvider(process.env.BNB_RPC_URL);
+const adminWallet = new ethers.Wallet(process.env.ADMIN_PRIVATE_KEY, provider);
+const mvzxContract = new ethers.Contract(
+  process.env.MVZX_TOKEN_CONTRACT,
+  [
+    'function transfer(address to, uint256 amount) public returns (bool)',
+    'function balanceOf(address owner) view returns (uint256)',
+    'function decimals() view returns (uint8)'
+  ],
+  adminWallet
 );
 
-// Core Business Logic
-async function processPayment(amount, userWallet, positions = []) {
-  const slotCost = parseInt(process.env.SLOT_COST_NGN);
-  const slotCount = Math.floor(amount / slotCost);
-  const remainingAmount = amount % slotCost;
-  
-  // Process Slots
-  const createdSlots = [];
-  for (let i = 0; i < slotCount; i++) {
-    const position = positions[i] || null;
-    const slot = await createSlot(userWallet, position);
-    createdSlots.push(slot);
-    
-    // Update user's slots
-    await User.updateOne(
-      { wallet: userWallet },
-      { $push: { slots: slot._id } }
-    );
-  }
-
-  // Process Remaining Balance
-  if (remainingAmount > 0) {
-    const mvzxAmount = remainingAmount * parseFloat(process.env.MVZX_PER_NAIRA);
-    await User.updateOne(
-      { wallet: userWallet },
-      { $inc: { balance: mvzxAmount } }
-    );
-  }
-
-  return { slots: createdSlots, remainingAmount };
-}
-
-async function createSlot(owner, position = null) {
-  if (!position) {
-    position = await determineOptimalPosition(owner);
-  }
-
-  const parent = await findAvailableParent(position);
-  const newSlot = new Slot({
-    owner,
-    position,
-    parent: parent?._id,
-    level: parent ? parent.level + 1 : 1
-  });
-
-  await newSlot.save();
-
-  if (parent) {
-    parent.children.push(newSlot._id);
-    await parent.save();
-  }
-
-  return newSlot;
-}
+// Validation Schemas
+const purchaseSchema = Joi.object({
+  wallet: Joi.string().pattern(/^0x[a-fA-F0-9]{40}$/).required(),
+  amount: Joi.number().min(2000).required(),
+  type: Joi.string().valid('auto', 'manual').required()
+});
 
 // API Endpoints
 app.post('/api/purchase/auto', async (req, res) => {
-  const schema = Joi.object({
-    amount: Joi.number().min(2000).required(),
-    wallet: Joi.string().required(),
-    pin: Joi.string().length(4).required()
-  });
-
-  const { error, value } = schema.validate(req.body);
-  if (error) return res.status(400).json({ error: error.details[0].message });
-
   try {
-    const result = await processPayment(value.amount, value.wallet);
+    // Validate input
+    const { error, value } = purchaseSchema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    // Calculate slots and remainder
+    const slotCost = parseInt(process.env.SLOT_COST_NGN);
+    const slotCount = Math.floor(value.amount / slotCost);
+    const remainder = value.amount % slotCost;
+
+    // Process slots
+    const slots = [];
+    for (let i = 0; i < slotCount; i++) {
+      const slot = await createSlot(value.wallet, 'auto');
+      slots.push(slot._id);
+    }
+
+    // Process remainder
+    let mvzxCredited = 0;
+    if (remainder > 0) {
+      mvzxCredited = (remainder * parseFloat(process.env.MVZX_USDT_RATE)) / (process.env.USDT_TO_NGN || 1500);
+      await creditUserWallet(value.wallet, mvzxCredited);
+    }
+
+    // Update user
+    await User.findOneAndUpdate(
+      { wallet: value.wallet },
+      { $push: { slots: { $each: slots } }, $inc: { balance: mvzxCredited } },
+      { upsert: true, new: true }
+    );
+
     res.json({
       success: true,
-      slotsPurchased: result.slots.length,
-      mvzxCredited: value.amount % 2000 * 0.0015,
-      treePosition: result.slots.map(s => ({
-        level: s.level,
-        position: s.position
-      }))
+      message: `Purchased ${slotCount} slots and credited ${mvzxCredited.toFixed(2)} MVZx`,
+      slots: slotCount,
+      mvzxCredited: mvzxCredited
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+
+  } catch (error) {
+    console.error('Auto purchase error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
 app.post('/api/purchase/manual', async (req, res) => {
-  const schema = Joi.object({
-    amount: Joi.number().min(2000).required(),
-    wallet: Joi.string().required(),
-    pin: Joi.string().length(4).required(),
-    positions: Joi.array().items(Joi.string().valid('left', 'right'))
-  });
-
-  const { error, value } = schema.validate(req.body);
-  if (error) return res.status(400).json({ error: error.details[0].message });
-
   try {
-    const result = await processPayment(value.amount, value.wallet, value.positions);
-    res.json({
-      success: true,
-      slotsPurchased: result.slots.length,
-      mvzxCredited: value.amount % 2000 * 0.0015,
-      positions: result.slots.map(s => s.position)
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    // Similar to auto purchase but with position selection
+    // Implement your manual placement logic here
+    res.json({ success: true, message: 'Manual placement logic will be implemented' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Server Start
+// Helper Functions
+async function createSlot(owner, position = 'auto') {
+  // Implement your slot creation logic
+  const newSlot = new Slot({
+    owner,
+    position: position === 'auto' ? (Math.random() > 0.5 ? 'right' : 'left') : position,
+    level: 1 // Implement level calculation based on parent
+  });
+  return await newSlot.save();
+}
+
+async function creditUserWallet(wallet, amount) {
+  const decimals = await mvzxContract.decimals();
+  const amountWei = ethers.utils.parseUnits(amount.toString(), decimals);
+  const tx = await mvzxContract.transfer(wallet, amountWei);
+  await tx.wait();
+}
+
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'active',
+    network: 'BNB Smart Chain',
+    contract: process.env.MVZX_TOKEN_CONTRACT,
+    lastBlock: provider.blockNumber
+  });
+});
+
+// Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
