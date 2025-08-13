@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -51,12 +51,14 @@
       display: none;
       margin-top: 30px;
     }
+    #mobile-wallet-link {
+      display: none;
+      margin-top: 15px;
+    }
   </style>
 </head>
 <body>
-  <!-- Logo with direct URL -->
-  <img id="logo" src="https://i.imgur.com/VbxvCK6.jpeg" alt="MAVIZ Logo" 
-       onerror="this.src='https://i.imgur.com/VbxvCK6.jpeg'">
+  <img id="logo" src="https://i.imgur.com/VbxvCK6.jpeg" alt="MAVIZ Logo">
 
   <button id="connect-btn">Connect Wallet</button>
 
@@ -69,6 +71,10 @@
       <img src="https://avatars.githubusercontent.com/u/37784886" width="20" alt="">
       WalletConnect
     </button>
+  </div>
+
+  <div id="mobile-wallet-link">
+    <a id="metamask-deeplink" href="#" target="_blank">Open in MetaMask App</a>
   </div>
 
   <div id="purchase-section">
@@ -84,6 +90,11 @@
     const metamaskBtn = document.getElementById('metamask-btn');
     const walletconnectBtn = document.getElementById('walletconnect-btn');
     const purchaseSection = document.getElementById('purchase-section');
+    const mobileWalletLink = document.getElementById('mobile-wallet-link');
+    const metamaskDeeplink = document.getElementById('metamask-deeplink');
+
+    // Detect if on mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
     // 1. Show wallet options immediately
     connectBtn.addEventListener('click', () => {
@@ -91,35 +102,62 @@
       walletOptions.style.display = 'flex';
     });
 
-    // 2. MetaMask Connection
+    // 2. MetaMask Connection - Enhanced for all cases
     metamaskBtn.addEventListener('click', async () => {
-      if (!window.ethereum) {
-        window.open('https://metamask.io/download.html', '_blank');
-        return;
-      }
-
-      try {
-        const accounts = await window.ethereum.request({ 
-          method: 'eth_requestAccounts' 
-        });
+      // Case 1: MetaMask extension installed
+      if (window.ethereum && window.ethereum.isMetaMask) {
+        try {
+          const accounts = await window.ethereum.request({ 
+            method: 'eth_requestAccounts' 
+          });
+          
+          handleSuccessfulConnection();
+          
+        } catch (error) {
+          alert(`Connection failed: ${error.message}`);
+        }
+      } 
+      // Case 2: Mobile browser without extension
+      else if (isMobile) {
+        // Create deeplink to MetaMask app
+        const dappUrl = window.location.href;
+        const metamaskAppLink = `https://metamask.app.link/dapp/${encodeURIComponent(dappUrl)}`;
+        metamaskDeeplink.href = metamaskAppLink;
         
-        // Connected - show purchase section
         walletOptions.style.display = 'none';
-        purchaseSection.style.display = 'block';
+        mobileWalletLink.style.display = 'block';
         
-        // Initialize MLM logic
-        initMLM();
-
-      } catch (error) {
-        alert(`Connection failed: ${error.message}`);
+        // Auto-click the deeplink after short delay
+        setTimeout(() => {
+          metamaskDeeplink.click();
+          
+          // Listen for return from MetaMask app
+          window.addEventListener('focus', checkMobileConnection, { once: true });
+        }, 500);
+      }
+      // Case 3: Desktop without extension
+      else {
+        window.open('https://metamask.io/download.html', '_blank');
       }
     });
 
-    // 3. WalletConnect Connection
-    walletconnectBtn.addEventListener('click', async () => {
-      alert("WalletConnect integration would go here");
-      // Similar flow to MetaMask
-    });
+    // Check if mobile user returned from MetaMask app
+    function checkMobileConnection() {
+      if (window.ethereum && window.ethereum.selectedAddress) {
+        handleSuccessfulConnection();
+      } else {
+        walletOptions.style.display = 'flex';
+        mobileWalletLink.style.display = 'none';
+      }
+    }
+
+    // 3. Handle successful connection (both desktop and mobile)
+    function handleSuccessfulConnection() {
+      walletOptions.style.display = 'none';
+      mobileWalletLink.style.display = 'none';
+      purchaseSection.style.display = 'block';
+      initMLM();
+    }
 
     // 4. MLM Purchase Logic
     function initMLM() {
@@ -130,7 +168,6 @@
           return;
         }
         
-        // Calculate slots (₦2000 increments)
         const slots = Math.floor(amount / 2000);
         const remainder = amount % 2000;
         
