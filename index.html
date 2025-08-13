@@ -11,7 +11,7 @@
 </head>
 <body>
   <div class="container">
-    <img id="logo" src="https://i.imgur.com/VbxvCK6.jpeg" alt="MAVIZ Logo">
+    <img id="logo" src="https://i.imgur.com/VbxvCK6.jpeg" alt="MAVIZ Logo" onerror="this.onerror=null;this.src='https://i.imgur.com/VbxvCK6.jpeg'">
 
     <div id="wallet-status">Wallet not connected</div>
     
@@ -45,6 +45,236 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script>
+    // DOM Elements
+    const metamaskBtn = document.getElementById('metamask-btn');
+    const walletconnectBtn = document.getElementById('walletconnect-btn');
+    const walletStatus = document.getElementById('wallet-status');
+    const purchaseSection = document.getElementById('purchase-section');
+    const amountInput = document.getElementById('amount');
+    const buyBtn = document.getElementById('buy-btn');
+    const purchaseSummary = document.getElementById('purchase-summary');
+
+    // Constants
+    const SLOT_PRICE = 2000;
+    const DEEP_LINK_BASE = "https://metamask.app.link/dapp/";
+    const API_BASE_URL = "https://your-render-backend.onrender.com";
+
+    // State
+    let provider, userAddress;
+
+    // Initialize
+    checkWalletConnection();
+    amountInput.addEventListener('input', updatePurchaseSummary);
+
+    // 1. MetaMask Connection
+    metamaskBtn.addEventListener('click', async () => {
+      if (isMobile()) {
+        // Mobile flow
+        window.location.href = DEEP_LINK_BASE + encodeURIComponent(window.location.href);
+        setTimeout(() => {
+          if (!window.ethereum) window.open("https://metamask.io/download.html", "_blank");
+        }, 1000);
+      } else {
+        // Desktop flow
+        if (!window.ethereum) {
+          window.open("https://metamask.io/download.html", "_blank");
+          return;
+        }
+
+        try {
+          toggleButtons(true);
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          userAddress = accounts[0];
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          
+          setupEthEventListeners();
+          updateUI();
+          initMLM();
+        } catch (error) {
+          showError(`MetaMask connection failed: ${error.message}`);
+        } finally {
+          toggleButtons(false);
+        }
+      }
+    });
+
+    // 2. WalletConnect Connection
+    walletconnectBtn.addEventListener('click', async () => {
+      try {
+        toggleButtons(true);
+        
+        const walletConnectProvider = new WalletConnectProvider.default({
+          rpc: { 56: "https://bsc-dataseed.binance.org/" },
+          chainId: 56
+        });
+        
+        await walletConnectProvider.enable();
+        provider = new ethers.providers.Web3Provider(walletConnectProvider);
+        userAddress = await provider.getSigner().getAddress();
+        
+        walletConnectProvider.on("accountsChanged", handleAccountsChanged);
+        walletConnectProvider.on("chainChanged", handleChainChanged);
+        
+        updateUI();
+        initMLM();
+      } catch (error) {
+        showError(`WalletConnect failed: ${error.message}`);
+      } finally {
+        toggleButtons(false);
+      }
+    });
+
+    // 3. Purchase Flow
+    buyBtn.addEventListener('click', async () => {
+      const amount = parseFloat(amountInput.value);
+      if (amount < SLOT_PRICE) {
+        showError(`Minimum purchase is ₦${SLOT_PRICE}`);
+        return;
+      }
+
+      try {
+        buyBtn.disabled = true;
+        const slots = Math.floor(amount / SLOT_PRICE);
+        const remainder = amount % SLOT_PRICE;
+
+        // Register purchase with backend
+        const response = await fetch(`${API_BASE_URL}/api/purchase`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: userAddress,
+            amount: amount,
+            slots: slots,
+            remainder: remainder,
+            referralCode: getReferralCodeFromURL()
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          processFlutterwavePayment(amount, slots, remainder, data.matrixPosition);
+        } else {
+          showError("Failed to register purchase");
+        }
+      } catch (error) {
+        showError(`Purchase failed: ${error.message}`);
+      } finally {
+        buyBtn.disabled = false;
+      }
+    });
+
+    // Helper Functions
+    function checkWalletConnection() {
+      if (window.ethereum?.selectedAddress) {
+        userAddress = window.ethereum.selectedAddress;
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        updateUI();
+        initMLM();
+      }
+    }
+
+    function updateUI() {
+      if (userAddress) {
+        walletStatus.textContent = `Connected: ${shortenAddress(userAddress)}`;
+        walletStatus.className = 'connected';
+        purchaseSection.style.display = 'block';
+      } else {
+        walletStatus.textContent = 'Wallet not connected';
+        walletStatus.className = '';
+        purchaseSection.style.display = 'none';
+      }
+    }
+
+    function initMLM() {
+      updatePurchaseSummary();
+    }
+
+    function updatePurchaseSummary() {
+      const amount = parseFloat(amountInput.value) || 0;
+      const slots = Math.floor(amount / SLOT_PRICE);
+      const remainder = amount % SLOT_PRICE;
+      
+      if (amount >= SLOT_PRICE) {
+        purchaseSummary.innerHTML = `
+          <p>Purchasing: ${slots} slot(s) (₦${slots * SLOT_PRICE})</p>
+          ${remainder > 0 ? `<p>+ ₦${remainder} as MVZx tokens</p>` : ''}
+        `;
+      } else {
+        purchaseSummary.innerHTML = '';
+      }
+    }
+
+    function processFlutterwavePayment(amount, slots, remainder, matrixPosition) {
+      FlutterwaveCheckout({
+        public_key: "FLWPUBK_TEST-XXXXXXXXXXXXXXXX-X",
+        tx_ref: "MAVIZ-" + Date.now(),
+        amount: amount,
+        currency: "NGN",
+        payment_options: "card, banktransfer, ussd",
+        customer: {
+          email: "user@example.com",
+          phone_number: "08123456789",
+          name: "MAVIZ User"
+        },
+        callback: function(response) {
+          if (response.status === "successful") {
+            alert(`Success! ${slots} slots at ${matrixPosition}\n${remainder}₦ MVZx credited`);
+          } else {
+            showError("Payment failed");
+          }
+        },
+        onclose: function() {
+          buyBtn.disabled = false;
+        },
+        customizations: {
+          title: "MAVIZ Token Purchase",
+          description: `${slots} MLM slots purchase`,
+          logo: "https://i.imgur.com/VbxvCK6.jpeg"
+        }
+      });
+    }
+
+    function setupEthEventListeners() {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+    }
+
+    function handleAccountsChanged(accounts) {
+      userAddress = accounts[0] || null;
+      updateUI();
+    }
+
+    function handleChainChanged() {
+      window.location.reload();
+    }
+
+    function toggleButtons(disabled) {
+      metamaskBtn.disabled = disabled;
+      walletconnectBtn.disabled = disabled;
+    }
+
+    function shortenAddress(address) {
+      return address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : '';
+    }
+
+    function isMobile() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    function getReferralCodeFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('ref');
+    }
+
+    function showError(message) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error';
+      errorDiv.textContent = message;
+      document.body.appendChild(errorDiv);
+      setTimeout(() => errorDiv.remove(), 5000);
+    }
+  </script>
 </body>
 </html>
