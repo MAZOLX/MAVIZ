@@ -21,6 +21,7 @@ body {
 #logo {
   height: 80px;
   margin: 20px auto;
+  display: block;
 }
 
 .wallet-btn {
@@ -34,6 +35,17 @@ body {
   align-items: center;
   justify-content: center;
   gap: 10px;
+  transition: all 0.3s ease;
+}
+
+.wallet-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.wallet-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 #metamask-btn {
@@ -52,10 +64,12 @@ body {
   border-radius: 8px;
   margin: 20px 0;
   word-break: break-all;
+  font-size: 14px;
 }
 
 .connected {
   color: var(--accent);
+  font-weight: bold;
 }
 
 #purchase-section {
@@ -85,11 +99,32 @@ body {
   font-size: 16px;
   cursor: pointer;
   width: 100%;
+  margin-top: 10px;
+  transition: all 0.3s ease;
+}
+
+#buy-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+#buy-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .error {
   color: var(--error);
   margin: 10px 0;
+  padding: 10px;
+  background: #ffecec;
+  border-radius: 8px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 #wallet-options {
@@ -99,10 +134,24 @@ body {
   margin: 20px 0;
 }
 
+#purchase-summary {
+  margin: 15px 0;
+  padding: 10px;
+  background: #f8f8f8;
+  border-radius: 8px;
+  text-align: left;
+}
+
 #mlm-structure {
   margin-top: 20px;
   text-align: left;
   background: #f8f8f8;
   padding: 15px;
   border-radius: 8px;
+  font-size: 14px;
+}
+
+#mlm-structure h3 {
+  margin-top: 0;
+  color: var(--primary);
 }
