@@ -1,4 +1,4 @@
- // DOM Elements
+// DOM Elements
 const metamaskBtn = document.getElementById('metamask-btn');
 const walletconnectBtn = document.getElementById('walletconnect-btn');
 const walletStatus = document.getElementById('wallet-status');
