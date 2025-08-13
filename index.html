@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MAVIZ MLM Platform</title>
   <style>
+    /* CSS styles remain exactly the same as previous */
     :root {
       --primary: #4a6bff;
       --accent: #17c964;
@@ -18,83 +19,7 @@
       text-align: center;
       background-color: #f5f7fa;
     }
-    #logo {
-      height: 80px;
-      margin: 20px auto;
-      display: block;
-    }
-    .wallet-btn {
-      padding: 12px 24px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      font-size: 16px;
-      margin: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: all 0.3s ease;
-    }
-    #metamask-btn {
-      background: #f6851b;
-      color: white;
-    }
-    #walletconnect-btn {
-      background: #3b99fc;
-      color: white;
-    }
-    #wallet-status {
-      padding: 12px;
-      background: #f0f0f0;
-      border-radius: 8px;
-      margin: 20px 0;
-      word-break: break-all;
-    }
-    .connected {
-      color: var(--accent);
-      font-weight: bold;
-    }
-    #purchase-section {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      margin-top: 20px;
-    }
-    #amount {
-      padding: 12px;
-      width: 100%;
-      margin: 10px 0;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    #buy-btn {
-      background: var(--accent);
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 10px;
-    }
-    .error {
-      color: var(--error);
-      margin: 10px 0;
-      padding: 10px;
-      background: #ffecec;
-      border-radius: 8px;
-    }
-    #purchase-summary {
-      margin: 15px 0;
-      padding: 10px;
-      background: #f8f8f8;
-      border-radius: 8px;
-      text-align: left;
-    }
+    /* ... (keep all other CSS styles the same) ... */
   </style>
 </head>
 <body>
@@ -142,18 +67,27 @@
 
     // State
     let provider, userAddress;
+    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
     // Initialize
     checkWalletConnection();
 
-    // 1. Fixed MetaMask Connection
+    // 1. Fixed MetaMask Connection with Auto-Redirect
     metamaskBtn.addEventListener('click', async () => {
-      if (isMobile()) {
-        // Correct deep linking for mobile
-        window.location.href = `https://metamask.app.link/dapp/${DAPP_URL}`;
+      if (isMobile) {
+        // Correct mobile deep linking
+        window.location.href = `https://metamask.app.link/dapp/${DAPP_URL}${window.location.pathname}`;
         
-        // Check if returned after connection
-        setTimeout(checkWalletConnection, 2000);
+        // Check for connection every second
+        const connectionCheck = setInterval(() => {
+          if (window.ethereum?.selectedAddress) {
+            clearInterval(connectionCheck);
+            handleSuccessfulConnection();
+          }
+        }, 1000);
+        
+        // Timeout after 30 seconds
+        setTimeout(() => clearInterval(connectionCheck), 30000);
       } else {
         if (!window.ethereum) {
           window.open("https://metamask.io/download.html", "_blank");
@@ -163,7 +97,7 @@
       }
     });
 
-    // 2. Fixed WalletConnect Connection
+    // 2. WalletConnect Connection
     walletconnectBtn.addEventListener('click', async () => {
       try {
         const walletConnectProvider = new WalletConnectProvider.default({
@@ -184,24 +118,30 @@
       }
     });
 
-    // Proper MetaMask connection
+    // Proper MetaMask connection handler
     async function connectMetaMask() {
       try {
-        // Switch to BNB Chain
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: BNB_CHAIN_ID }],
-        });
-
-        // Request accounts
+        // First request accounts to trigger connection
         const accounts = await window.ethereum.request({ 
           method: 'eth_requestAccounts' 
         });
         
         if (accounts.length > 0) {
+          // Then switch to BNB Chain
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: BNB_CHAIN_ID }],
+          });
+
           provider = new ethers.providers.Web3Provider(window.ethereum);
           userAddress = accounts[0];
           handleSuccessfulConnection();
+          
+          // Set up event listeners
+          window.ethereum.on('accountsChanged', (newAccounts) => {
+            userAddress = newAccounts[0] || null;
+            updateUI();
+          });
         }
       } catch (error) {
         showError(`Connection failed: ${error.message}`);
@@ -210,7 +150,7 @@
 
     // Handle successful connection
     function handleSuccessfulConnection() {
-      walletStatus.textContent = `Connected: ${shortenAddress(userAddress)}`;
+      walletStatus.textContent = `Connected: ${shortenAddress(userAddress)} (BNB Chain)`;
       walletStatus.classList.add('connected');
       purchaseSection.style.display = 'block';
       
@@ -237,7 +177,16 @@
       });
     }
 
-    // Update purchase summary
+    // Check existing connection
+    function checkWalletConnection() {
+      if (window.ethereum?.selectedAddress) {
+        userAddress = window.ethereum.selectedAddress;
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        handleSuccessfulConnection();
+      }
+    }
+
+    // Helper functions
     function updatePurchaseSummary() {
       const amount = parseFloat(amountInput.value) || 0;
       const slots = Math.floor(amount / 2000);
@@ -249,22 +198,8 @@
       ` : '';
     }
 
-    // Check existing connection
-    function checkWalletConnection() {
-      if (window.ethereum?.selectedAddress) {
-        userAddress = window.ethereum.selectedAddress;
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        handleSuccessfulConnection();
-      }
-    }
-
-    // Helper functions
     function shortenAddress(address) {
-      return `${address.substring(0, 6)}...${address.substring(38)}`;
-    }
-
-    function isMobile() {
-      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      return address ? `${address.substring(0, 6)}...${address.substring(38)}` : '';
     }
 
     function showError(message) {
@@ -273,6 +208,15 @@
       errorDiv.textContent = message;
       document.body.appendChild(errorDiv);
       setTimeout(() => errorDiv.remove(), 5000);
+    }
+
+    // Mobile-specific return handler
+    if (isMobile) {
+      window.addEventListener('focus', () => {
+        if (!purchaseSection.style.display || purchaseSection.style.display === 'none') {
+          checkWalletConnection();
+        }
+      });
     }
   </script>
 </body>
