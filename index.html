@@ -3,221 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MAVIZ MLM Platform</title>
-  <style>
-    /* CSS styles remain exactly the same as previous */
-    :root {
-      --primary: #4a6bff;
-      --accent: #17c964;
-      --error: #f31260;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      text-align: center;
-      background-color: #f5f7fa;
-    }
-    /* ... (keep all other CSS styles the same) ... */
-  </style>
+  <title>MAVIZ Token Purchase</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <img id="logo" src="https://i.imgur.com/VbxvCK6.jpeg" alt="MAVIZ Logo">
+  <div class="container">
+    <img id="logo" src="https://i.imgur.com/VbxvCK6.jpeg" alt="MAVIZ Logo" 
+         onerror="this.src='https://i.imgur.com/VbxvCK6.jpeg'">
 
-  <div id="wallet-status">Wallet not connected</div>
-  
-  <div id="wallet-options">
-    <button id="metamask-btn" class="wallet-btn">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" width="20" alt="">
-      MetaMask
-    </button>
-    <button id="walletconnect-btn" class="wallet-btn">
-      <img src="https://avatars.githubusercontent.com/u/37784886" width="20" alt="">
-      WalletConnect
-    </button>
-  </div>
+    <div id="wallet-status">Connect wallet to begin</div>
+    
+    <div id="wallet-options">
+      <button id="metamask-btn" class="wallet-btn">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" width="20" alt="">
+        MetaMask
+      </button>
+      <button id="walletconnect-btn" class="wallet-btn">
+        <img src="https://avatars.githubusercontent.com/u/37784886" width="20" alt="">
+        WalletConnect
+      </button>
+    </div>
 
-  <div id="purchase-section" style="display:none;">
-    <h2>Purchase MVZx Tokens</h2>
-    <p>₦2000 = 1 Slot in MLM Matrix (Minimum purchase: ₦2000)</p>
-    
-    <input type="number" id="amount" placeholder="Enter amount in Naira" min="2000" step="100">
-    
-    <div id="purchase-summary"></div>
-    
-    <button id="buy-btn">Proceed to Payment</button>
+    <div id="purchase-interface">
+      <h2>Purchase MVZx Tokens</h2>
+      
+      <div class="payment-options">
+        <div class="option selected" data-currency="ngn">
+          <h3>₦2000 per slot</h3>
+          <p>Pay with Naira</p>
+        </div>
+        <div class="option" data-currency="usdt">
+          <h3>$3.33 per slot</h3>
+          <p>Pay with USDT</p>
+        </div>
+      </div>
+      
+      <input type="number" id="amount" placeholder="Enter amount" min="2000">
+      <div id="purchase-summary"></div>
+      <button id="buy-btn">Proceed to Payment</button>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
-  <script>
-    // DOM Elements
-    const metamaskBtn = document.getElementById('metamask-btn');
-    const walletconnectBtn = document.getElementById('walletconnect-btn');
-    const walletStatus = document.getElementById('wallet-status');
-    const purchaseSection = document.getElementById('purchase-section');
-    const amountInput = document.getElementById('amount');
-    const buyBtn = document.getElementById('buy-btn');
-    const purchaseSummary = document.getElementById('purchase-summary');
-
-    // Configuration
-    const BNB_CHAIN_ID = '0x38';
-    const DAPP_URL = window.location.hostname;
-
-    // State
-    let provider, userAddress;
-    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-    // Initialize
-    checkWalletConnection();
-
-    // 1. Fixed MetaMask Connection with Auto-Redirect
-    metamaskBtn.addEventListener('click', async () => {
-      if (isMobile) {
-        // Correct mobile deep linking
-        window.location.href = `https://metamask.app.link/dapp/${DAPP_URL}${window.location.pathname}`;
-        
-        // Check for connection every second
-        const connectionCheck = setInterval(() => {
-          if (window.ethereum?.selectedAddress) {
-            clearInterval(connectionCheck);
-            handleSuccessfulConnection();
-          }
-        }, 1000);
-        
-        // Timeout after 30 seconds
-        setTimeout(() => clearInterval(connectionCheck), 30000);
-      } else {
-        if (!window.ethereum) {
-          window.open("https://metamask.io/download.html", "_blank");
-          return;
-        }
-        await connectMetaMask();
-      }
-    });
-
-    // 2. WalletConnect Connection
-    walletconnectBtn.addEventListener('click', async () => {
-      try {
-        const walletConnectProvider = new WalletConnectProvider.default({
-          rpc: { 56: "https://bsc-dataseed.binance.org/" },
-          chainId: 56,
-          qrcodeModalOptions: {
-            mobileLinks: ["metamask", "trust"]
-          }
-        });
-
-        await walletConnectProvider.enable();
-        provider = new ethers.providers.Web3Provider(walletConnectProvider);
-        userAddress = await provider.getSigner().getAddress();
-        
-        handleSuccessfulConnection();
-      } catch (error) {
-        showError(`WalletConnect failed: ${error.message}`);
-      }
-    });
-
-    // Proper MetaMask connection handler
-    async function connectMetaMask() {
-      try {
-        // First request accounts to trigger connection
-        const accounts = await window.ethereum.request({ 
-          method: 'eth_requestAccounts' 
-        });
-        
-        if (accounts.length > 0) {
-          // Then switch to BNB Chain
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: BNB_CHAIN_ID }],
-          });
-
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          userAddress = accounts[0];
-          handleSuccessfulConnection();
-          
-          // Set up event listeners
-          window.ethereum.on('accountsChanged', (newAccounts) => {
-            userAddress = newAccounts[0] || null;
-            updateUI();
-          });
-        }
-      } catch (error) {
-        showError(`Connection failed: ${error.message}`);
-      }
-    }
-
-    // Handle successful connection
-    function handleSuccessfulConnection() {
-      walletStatus.textContent = `Connected: ${shortenAddress(userAddress)} (BNB Chain)`;
-      walletStatus.classList.add('connected');
-      purchaseSection.style.display = 'block';
-      
-      // Initialize MLM purchase flow
-      initMLM();
-    }
-
-    // Initialize MLM interface
-    function initMLM() {
-      amountInput.addEventListener('input', updatePurchaseSummary);
-      
-      buyBtn.addEventListener('click', () => {
-        const amount = parseFloat(amountInput.value);
-        if (amount < 2000) {
-          showError('Minimum purchase is ₦2000');
-          return;
-        }
-        
-        const slots = Math.floor(amount / 2000);
-        const remainder = amount % 2000;
-        
-        alert(`Ready to purchase ${slots} MLM slots + ₦${remainder} MVZx tokens`);
-        // Initialize payment here
-      });
-    }
-
-    // Check existing connection
-    function checkWalletConnection() {
-      if (window.ethereum?.selectedAddress) {
-        userAddress = window.ethereum.selectedAddress;
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        handleSuccessfulConnection();
-      }
-    }
-
-    // Helper functions
-    function updatePurchaseSummary() {
-      const amount = parseFloat(amountInput.value) || 0;
-      const slots = Math.floor(amount / 2000);
-      const remainder = amount % 2000;
-      
-      purchaseSummary.innerHTML = amount >= 2000 ? `
-        <p>Purchasing: ${slots} slot(s) (₦${slots * 2000})</p>
-        ${remainder > 0 ? `<p>+ ₦${remainder} as MVZx tokens</p>` : ''}
-      ` : '';
-    }
-
-    function shortenAddress(address) {
-      return address ? `${address.substring(0, 6)}...${address.substring(38)}` : '';
-    }
-
-    function showError(message) {
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'error';
-      errorDiv.textContent = message;
-      document.body.appendChild(errorDiv);
-      setTimeout(() => errorDiv.remove(), 5000);
-    }
-
-    // Mobile-specific return handler
-    if (isMobile) {
-      window.addEventListener('focus', () => {
-        if (!purchaseSection.style.display || purchaseSection.style.display === 'none') {
-          checkWalletConnection();
-        }
-      });
-    }
-  </script>
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
