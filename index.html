@@ -11,60 +11,54 @@
   <div class="container">
     <img id="logo" src="https://i.imgur.com/VbxvCK6.jpeg" alt="MAVIZ Logo">
 
-    <div class="payment-options">
-      <!-- USDT Option -->
-      <div class="option" id="usdt-option">
-        <img src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="USDT">
-        <h3>Buy with USDT</h3>
-        <p>Connect your crypto wallet</p>
-        <div id="wallet-buttons">
-          <button id="metamask-btn">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" width="20">
-            MetaMask
+    <!-- Purchase Form (Visible Immediately) -->
+    <div id="purchase-form">
+      <h2>MVZx Token Purchase</h2>
+      
+      <div class="form-group">
+        <label>Select Payment Method:</label>
+        <div class="payment-methods">
+          <button id="usdt-method" class="active">
+            <img src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="USDT">
+            Pay with USDT
           </button>
-          <button id="walletconnect-btn">
-            <img src="https://avatars.githubusercontent.com/u/37784886" width="20">
-            WalletConnect
+          <button id="cash-method">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Nigerian_naira_symbol.png" alt="Naira">
+            Pay with Cash
           </button>
         </div>
       </div>
-      
-      <!-- Cash Option -->
-      <div class="option" id="cash-option">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Nigerian_naira_symbol.png" alt="Naira">
-        <h3>Buy with Cash</h3>
-        <p>Pay via Flutterwave</p>
-        <button id="buy-cash-btn">Buy Now</button>
-      </div>
-    </div>
 
-    <!-- USDT Purchase Section -->
-    <div id="usdt-purchase" class="purchase-section">
-      <h2><img src="https://cryptologos.cc/logos/tether-usdt-logo.png" width="24"> USDT Purchase</h2>
-      <div class="wallet-info">
-        Connected: <span id="wallet-address"></span>
+      <div class="form-group">
+        <label for="amount">Amount to Invest:</label>
+        <div class="input-group">
+          <input type="number" id="amount" min="2000" step="100" value="2000">
+          <span id="currency-display">NGN</span>
+        </div>
+        <div id="slots-display">You get: 1 slot (₦2000)</div>
       </div>
-      <div class="input-group">
-        <input type="number" id="usdt-amount" placeholder="Enter USDT amount" min="3.33" step="0.01">
-        <span>USDT</span>
+
+      <div id="wallet-section">
+        <button id="connect-wallet-btn">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask">
+          Connect Wallet
+        </button>
+        <div id="wallet-connected" class="hidden">
+          Connected: <span id="wallet-address"></span>
+        </div>
       </div>
-      <div id="usdt-summary" class="summary"></div>
-      <button id="confirm-usdt-btn" class="action-btn">Confirm Purchase</button>
+
+      <button id="buy-btn" class="hidden">Confirm Purchase</button>
     </div>
 
     <!-- Loading Indicator -->
-    <div id="loading" class="loading-container">
+    <div id="loading" class="loading-container hidden">
       <div class="loader"></div>
-      <p>Processing transaction...</p>
+      <p>Processing your transaction...</p>
     </div>
-
-    <!-- Error Display -->
-    <div id="error-display"></div>
   </div>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
   <script src="https://checkout.flutterwave.com/v3.js"></script>
   <script src="app.js"></script>
 </body>
