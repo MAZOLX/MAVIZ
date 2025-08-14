@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -13,43 +13,83 @@
     
     <!-- Wallet Connection Section -->
     <div id="wallet-section">
-      <h2>Connect Your Wallet</h2>
-      <button id="connect-btn">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask">
-        Connect with MetaMask
-      </button>
-      <p id="wallet-status">Not connected</p>
+      <h2>Get Started</h2>
+      <div class="wallet-buttons">
+        <button id="connect-wallet-btn">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask">
+          Connect Wallet
+        </button>
+        <button id="create-wallet-btn">
+          <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png" alt="Ethereum">
+          Create Platform Wallet
+        </button>
+      </div>
+      <div id="wallet-status">
+        <span class="status-indicator"></span>
+        <span id="status-text">Not connected</span>
+      </div>
+      <div id="wallet-address-display" class="hidden">
+        <span id="wallet-address"></span>
+        <button id="copy-address-btn">Copy</button>
+      </div>
     </div>
 
-    <!-- Purchase & MLM Registration Form (Initially Hidden) -->
-    <div id="purchase-form" class="hidden">
-      <h2>Complete Your Purchase</h2>
-      
-      <div class="form-group">
-        <label for="full-name">Full Name:</label>
-        <input type="text" id="full-name" required>
+    <!-- Payment Method Selection -->
+    <div id="payment-methods" class="hidden">
+      <h3>Choose Payment Method</h3>
+      <div class="method-buttons">
+        <button id="pay-with-usdt">
+          <img src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="USDT">
+          Buy with USDT
+        </button>
+        <button id="pay-with-cash">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Nigerian_naira_symbol.png" alt="NGN">
+          Buy with Cash
+        </button>
       </div>
+    </div>
 
+    <!-- USDT Purchase Form -->
+    <div id="usdt-form" class="purchase-form hidden">
+      <h3>USDT Purchase</h3>
       <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email" required>
+        <label>USDT Amount (Min $3.33 ≈ ₦2000):</label>
+        <input type="number" id="usdt-amount" min="3.33" step="0.01" placeholder="Enter USDT amount">
       </div>
-
       <div class="form-group">
-        <label for="phone">Phone Number:</label>
-        <input type="tel" id="phone" required>
+        <label>Equivalent MVZx Tokens:</label>
+        <div id="usdt-tokens">0 MVZx</div>
       </div>
-
       <div class="form-group">
-        <label for="amount">Investment Amount (₦):</label>
-        <input type="number" id="amount" min="2000" value="2000" step="1000" required>
-        <div id="slots-display">You get: 1 slot (₦2000)</div>
+        <label>Receiving Wallet:</label>
+        <select id="receiving-wallet">
+          <option value="platform">Platform Wallet</option>
+          <option value="external">Connected Wallet</option>
+        </select>
       </div>
+      <button id="confirm-usdt" class="confirm-btn">Confirm & Purchase</button>
+    </div>
 
+    <!-- Cash Purchase Form -->
+    <div id="cash-form" class="purchase-form hidden">
+      <h3>Cash Purchase</h3>
+      <div class="form-group">
+        <label>Amount in Naira (Min ₦2000):</label>
+        <input type="number" id="cash-amount" min="2000" step="100" placeholder="Enter Naira amount">
+      </div>
+      <div class="form-group">
+        <label>Equivalent MVZx Tokens:</label>
+        <div id="cash-tokens">0 MVZx</div>
+      </div>
       <div class="payment-options">
-        <button id="pay-with-wallet">Pay with USDT</button>
-        <button id="pay-with-cash">Pay with Flutterwave</button>
+        <label>Payment Method:</label>
+        <select id="cash-method">
+          <option value="card">Debit/Credit Card</option>
+          <option value="bank">Bank Transfer</option>
+          <option value="usd">USD Card</option>
+        </select>
       </div>
+      <button id="confirm-cash" class="confirm-btn">Confirm & Pay</button>
     </div>
 
     <!-- Loading Indicator -->
