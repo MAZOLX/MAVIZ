@@ -1,55 +1,52 @@
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
-  const usdtMethodBtn = document.getElementById('usdt-method');
-  const cashMethodBtn = document.getElementById('cash-method');
-  const amountInput = document.getElementById('amount');
-  const currencyDisplay = document.getElementById('currency-display');
-  const slotsDisplay = document.getElementById('slots-display');
+  const usdtOption = document.getElementById('usdt-option');
+  const cashOption = document.getElementById('cash-option');
   const connectWalletBtn = document.getElementById('connect-wallet-btn');
-  const walletConnectedDiv = document.getElementById('wallet-connected');
-  const walletAddressSpan = document.getElementById('wallet-address');
-  const buyBtn = document.getElementById('buy-btn');
-  const loadingDiv = document.getElementById('loading');
+  const buyCashBtn = document.getElementById('buy-cash-btn');
+  const amountInput = document.getElementById('amount');
+  const currencyDisplay = document.getElementById('currency');
+  const slotsInfo = document.getElementById('slots-info');
+  const confirmPurchaseBtn = document.getElementById('confirm-purchase');
+  const walletInfo = document.getElementById('wallet-info');
+  const walletAddress = document.getElementById('wallet-address');
+  const loading = document.getElementById('loading');
 
   // Constants
   const SLOT_PRICE_NGN = 2000;
   const SLOT_PRICE_USDT = 3.33;
-  const EXCHANGE_RATE = SLOT_PRICE_NGN / SLOT_PRICE_USDT;
   let currentPaymentMethod = 'usdt';
   let userAddress = null;
 
   // Initialize
-  updateDisplay();
+  updateUI();
 
   // Event Listeners
-  usdtMethodBtn.addEventListener('click', () => {
+  usdtOption.addEventListener('click', () => {
     currentPaymentMethod = 'usdt';
-    usdtMethodBtn.classList.add('active');
-    cashMethodBtn.classList.remove('active');
-    updateDisplay();
+    usdtOption.classList.add('active');
+    cashOption.classList.remove('active');
+    updateUI();
   });
 
-  cashMethodBtn.addEventListener('click', () => {
+  cashOption.addEventListener('click', () => {
     currentPaymentMethod = 'cash';
-    cashMethodBtn.classList.add('active');
-    usdtMethodBtn.classList.remove('active');
-    updateDisplay();
+    cashOption.classList.add('active');
+    usdtOption.classList.remove('active');
+    updateUI();
   });
 
-  amountInput.addEventListener('input', updateDisplay);
+  amountInput.addEventListener('input', updateUI);
   connectWalletBtn.addEventListener('click', connectWallet);
-  buyBtn.addEventListener('click', processPurchase);
+  buyCashBtn.addEventListener('click', processCashPayment);
+  confirmPurchaseBtn.addEventListener('click', processUsdtPayment);
 
-  // Update display based on selections
-  function updateDisplay() {
+  // Functions
+  function updateUI() {
     const amount = parseFloat(amountInput.value) || 0;
     const minAmount = currentPaymentMethod === 'usdt' ? SLOT_PRICE_USDT : SLOT_PRICE_NGN;
     
-    // Set minimum amount
-    amountInput.min = minAmount;
-    amountInput.step = currentPaymentMethod === 'usdt' ? '0.01' : '100';
-    
-    // Update currency display
+    // Set currency display
     currencyDisplay.textContent = currentPaymentMethod === 'usdt' ? 'USDT' : 'NGN';
     
     // Calculate slots
@@ -59,24 +56,23 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update slots display
     if (amount >= minAmount) {
-      slotsDisplay.textContent = `You get: ${slots} slot(s) (${formatCurrency(effectiveAmount)})`;
-      slotsDisplay.style.color = 'var(--primary)';
+      slotsInfo.textContent = `You get: ${slots} slot(s) (${formatCurrency(effectiveAmount)})`;
     } else {
-      slotsDisplay.textContent = `Minimum: ${formatCurrency(minAmount)} for 1 slot`;
-      slotsDisplay.style.color = 'var(--error)';
+      slotsInfo.textContent = `Minimum: ${formatCurrency(minAmount)} for 1 slot`;
     }
     
-    // Update button states
+    // Update button visibility
     if (currentPaymentMethod === 'usdt') {
       connectWalletBtn.style.display = 'flex';
-      buyBtn.classList.add('hidden');
+      buyCashBtn.style.display = 'none';
+      confirmPurchaseBtn.classList.toggle('hidden', !userAddress);
     } else {
       connectWalletBtn.style.display = 'none';
-      buyBtn.classList.remove('hidden');
+      buyCashBtn.style.display = 'flex';
+      confirmPurchaseBtn.classList.add('hidden');
     }
   }
 
-  // Connect Wallet (MetaMask)
   async function connectWallet() {
     showLoading();
     
@@ -99,10 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (accounts.length > 0) {
         userAddress = accounts[0];
-        walletAddressSpan.textContent = `${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
-        walletConnectedDiv.classList.remove('hidden');
-        connectWalletBtn.classList.add('hidden');
-        buyBtn.classList.remove('hidden');
+        walletAddress.textContent = userAddress;
+        walletInfo.classList.remove('hidden');
+        updateUI();
         
         // Listen for account changes
         window.ethereum.on('accountsChanged', (newAccounts) => {
@@ -110,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resetWallet();
           } else {
             userAddress = newAccounts[0];
-            walletAddressSpan.textContent = `${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
+            walletAddress.textContent = userAddress;
           }
         });
       }
@@ -121,44 +116,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Process Purchase
-  async function processPurchase() {
-    const amount = parseFloat(amountInput.value);
-    const slotPrice = currentPaymentMethod === 'usdt' ? SLOT_PRICE_USDT : SLOT_PRICE_NGN;
-    const minAmount = currentPaymentMethod === 'usdt' ? SLOT_PRICE_USDT : SLOT_PRICE_NGN;
+  function processCashPayment() {
+    const amount = parseFloat(amountInput.value) || SLOT_PRICE_NGN;
     
-    if (isNaN(amount) {
-      showError('Please enter a valid amount');
-      return;
-    }
-    
-    if (amount < minAmount) {
-      showError(`Minimum purchase is ${formatCurrency(minAmount)}`);
-      return;
-    }
-    
-    showLoading();
-    
-    try {
-      if (currentPaymentMethod === 'cash') {
-        // Process Flutterwave payment
-        processFlutterwavePayment(amount);
-      } else {
-        // Process USDT payment
-        const slots = Math.floor(amount / SLOT_PRICE_USDT);
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate tx
-        showSuccess(`Success! Purchased ${slots} slot(s)`);
-        resetForm();
-      }
-    } catch (error) {
-      showError(`Payment failed: ${error.message}`);
-    } finally {
-      hideLoading();
-    }
-  }
-
-  // Flutterwave Payment
-  function processFlutterwavePayment(amount) {
     FlutterwaveCheckout({
       public_key: process.env.FLUTTERWAVE_PUBLIC_KEY,
       tx_ref: 'MVZX-' + Date.now(),
@@ -173,18 +133,34 @@ document.addEventListener('DOMContentLoaded', () => {
       callback: function(response) {
         if (response.status === "successful") {
           const slots = Math.floor(amount / SLOT_PRICE_NGN);
-          showSuccess(`Success! Purchased ${slots} slot(s)`);
-          resetForm();
+          showMessage(`Success! Purchased ${slots} slot(s)`, 'success');
         } else {
-          showError("Payment failed or was cancelled");
+          showMessage("Payment failed", 'error');
         }
       },
       customizations: {
         title: "MAVIZ Token Purchase",
-        description: `Purchase MVZx Tokens (₦${SLOT_PRICE_NGN}/slot)`,
+        description: `Purchase of ${Math.floor(amount/SLOT_PRICE_NGN)} slots`,
         logo: "https://i.imgur.com/VbxvCK6.jpeg"
       }
     });
+  }
+
+  async function processUsdtPayment() {
+    const amount = parseFloat(amountInput.value) || SLOT_PRICE_USDT;
+    const slots = Math.floor(amount / SLOT_PRICE_USDT);
+    
+    showLoading();
+    
+    try {
+      // Simulate transaction (replace with actual contract call)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      showMessage(`Success! Purchased ${slots} slot(s)`, 'success');
+    } catch (error) {
+      showMessage(`Transaction failed: ${error.message}`, 'error');
+    } finally {
+      hideLoading();
+    }
   }
 
   // Helper Functions
@@ -196,14 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resetWallet() {
     userAddress = null;
-    walletConnectedDiv.classList.add('hidden');
-    connectWalletBtn.classList.remove('hidden');
-    buyBtn.classList.add('hidden');
-  }
-
-  function resetForm() {
-    amountInput.value = currentPaymentMethod === 'usdt' ? SLOT_PRICE_USDT : SLOT_PRICE_NGN;
-    updateDisplay();
+    walletInfo.classList.add('hidden');
+    updateUI();
   }
 
   function isMobile() {
@@ -211,39 +181,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showLoading() {
-    loadingDiv.classList.remove('hidden');
+    loading.classList.remove('hidden');
   }
 
   function hideLoading() {
-    loadingDiv.classList.add('hidden');
+    loading.classList.add('hidden');
   }
 
-  function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
-    document.body.appendChild(errorDiv);
+  function showMessage(message, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    messageDiv.textContent = message;
+    document.body.appendChild(messageDiv);
     
     setTimeout(() => {
-      errorDiv.classList.add('fade-out');
-      setTimeout(() => errorDiv.remove(), 300);
+      messageDiv.remove();
     }, 5000);
   }
 
-  function showSuccess(message) {
-    const successDiv = document.createElement('div');
-    successDiv.className = 'error-message';
-    successDiv.style.backgroundColor = 'var(--accent)';
-    successDiv.textContent = message;
-    document.body.appendChild(successDiv);
-    
-    setTimeout(() => {
-      successDiv.classList.add('fade-out');
-      setTimeout(() => successDiv.remove(), 300);
-    }, 5000);
-  }
-
-  // Handle mobile return from MetaMask
+  // Handle mobile return
   if (isMobile()) {
     window.addEventListener('focus', () => {
       if (window.ethereum?.selectedAddress && !userAddress) {
