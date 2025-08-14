@@ -8,9 +8,9 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #f8fafc;
   margin: 0;
   padding: 0;
+  background-color: #f8fafc;
 }
 
 .container {
@@ -19,7 +19,7 @@ body {
   padding: 20px;
 }
 
-#logo {
+.logo {
   width: 120px;
   height: 120px;
   margin: 0 auto 20px;
@@ -30,134 +30,122 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-#purchase-form {
-  background: white;
-  padding: 25px;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-h2 {
-  color: var(--primary);
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.payment-methods {
+.payment-options {
   display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 15px;
+  margin: 30px 0;
 }
 
-.payment-methods button {
+.option {
   flex: 1;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  padding: 20px;
   background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  text-align: center;
+}
+
+.option.active {
+  border: 2px solid var(--primary);
+}
+
+.option img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  margin-bottom: 10px;
+}
+
+.option h3 {
+  margin: 10px 0 5px;
+  color: var(--primary);
+}
+
+.option p {
+  color: #666;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  cursor: pointer;
 }
 
-.payment-methods button.active {
-  border-color: var(--primary);
-  background: #f0f5ff;
+#connect-wallet-btn {
+  background: var(--usdt);
+  color: white;
 }
 
-.payment-methods button img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
+#buy-cash-btn {
+  background: var(--cash);
+  color: white;
+}
+
+#purchase-form {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
 
 .input-group {
   display: flex;
-  margin-bottom: 10px;
-}
-
-.input-group input {
-  flex: 1;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px 0 0 8px;
-  font-size: 16px;
-}
-
-.input-group span {
-  background: #f0f0f0;
-  padding: 12px;
-  border-radius: 0 8px 8px 0;
-  min-width: 60px;
-  text-align: center;
-}
-
-#slots-display {
-  background: #f8f8f8;
-  padding: 10px;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 14px;
-}
-
-#connect-wallet-btn {
-  width: 100%;
-  padding: 12px;
-  background: #f6851b;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  margin: 15px 0;
-}
-
-#connect-wallet-btn img {
-  width: 20px;
-  height: 20px;
-}
-
-#wallet-connected {
-  background: #f0f7ff;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 14px;
-  text-align: center;
-  word-break: break-all;
   margin-bottom: 15px;
 }
 
-#buy-btn {
-  width: 100%;
-  padding: 14px;
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
+.input-group label {
+  flex: 1;
+  align-self: center;
 }
 
-.loading-container {
+.input-group input {
+  flex: 2;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.input-group span {
+  flex: 1;
+  align-self: center;
+  text-align: right;
+}
+
+#slots-info {
+  background: #f8f8f8;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 15px 0;
   text-align: center;
-  margin-top: 20px;
+}
+
+#confirm-purchase {
+  background: var(--accent);
+  color: white;
+}
+
+#wallet-info {
+  background: #f0f7ff;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 15px;
+  word-break: break-all;
+  font-size: 14px;
+}
+
+#loading {
+  text-align: center;
+  margin-top: 30px;
 }
 
 .loader {
@@ -179,21 +167,11 @@ label {
   display: none !important;
 }
 
-.error-message {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--error);
-  color: white;
-  padding: 12px 24px;
+.error {
+  color: var(--error);
+  background: #ffecec;
+  padding: 12px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  z-index: 1000;
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from { transform: translateX(-50%) translateY(100%); opacity: 0; }
-  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+  margin: 15px 0;
+  text-align: center;
 }
