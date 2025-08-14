@@ -1,7 +1,7 @@
 {
-  "name": "maviz-platform",
+  "name": "maviz-mlm",
   "version": "1.0.0",
-  "description": "MAVIZ Token Purchase Platform",
+  "description": "MAVIZ Token MLM Platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
