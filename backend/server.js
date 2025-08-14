@@ -25,69 +25,89 @@ const mvzxContract = new ethers.Contract(
   adminWallet
 );
 
-const usdtContract = new ethers.Contract(
-  process.env.USDT_CONTRACT,
-  ['function transferFrom(address sender, address recipient, uint256 amount)'],
-  adminWallet
-);
+// MLM Storage (in production, use a database)
+const mlmRegistrations = [];
 
 // Routes
-app.post('/api/purchase/ngn', async (req, res) => {
+app.post('/api/register-mlm', async (req, res) => {
   try {
-    const { walletAddress, amount } = req.body;
-    const slots = Math.floor(amount / process.env.SLOT_PRICE_NGN);
-    const tokens = slots * process.env.TOKENS_PER_SLOT;
+    const { walletAddress, name, email, phone, amount, slots, paymentMethod } = req.body;
     
-    const tx = await mvzxContract.transfer(
+    // Validate input
+    if (!ethers.utils.isAddress(walletAddress)) {
+      return res.status(400).json({ error: 'Invalid wallet address' });
+    }
+    
+    if (amount < process.env.MIN_INVESTMENT) {
+      return res.status(400).json({ error: `Minimum investment is ₦${process.env.MIN_INVESTMENT}` });
+    }
+
+    // Register in MLM system
+    const matrixPosition = generateMatrixPosition(walletAddress);
+    const registration = {
       walletAddress,
-      ethers.utils.parseUnits(tokens.toString(), 18)
-    );
-    
-    res.json({
-      success: true,
+      name,
+      email,
+      phone,
+      amount,
       slots,
-      tokens,
-      txHash: tx.hash
+      paymentMethod,
+      matrixPosition,
+      date: new Date()
+    };
+    
+    mlmRegistrations.push(registration);
+    
+    // Distribute tokens if paid with USDT
+    if (paymentMethod === 'usdt') {
+      const tokens = slots * process.env.TOKENS_PER_SLOT;
+      const tx = await mvzxContract.transfer(
+        walletAddress,
+        ethers.utils.parseUnits(tokens.toString(), 18)
+      );
+      registration.txHash = tx.hash;
+    }
+    
+    res.json({ 
+      success: true,
+      registration
     });
+    
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/purchase/usdt', async (req, res) => {
-  try {
-    const { walletAddress, amount } = req.body;
-    const slots = Math.floor(amount / process.env.SLOT_PRICE_USDT);
-    
-    // Transfer USDT
-    const usdtTx = await usdtContract.transferFrom(
-      walletAddress,
-      process.env.TREASURY_WALLET,
-      ethers.utils.parseUnits(amount.toString(), 18)
-    );
-    
-    // Transfer MVZX
-    const mvzxTx = await mvzxContract.transfer(
-      walletAddress,
-      ethers.utils.parseUnits(
-        (slots * process.env.TOKENS_PER_SLOT).toString(), 
-        18
-      )
-    );
-    
-    res.json({
-      success: true,
-      slots,
-      usdtTx: usdtTx.hash,
-      mvzxTx: mvzxTx.hash
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+// Flutterwave Webhook
+app.post('/api/flutterwave-webhook', (req, res) => {
+  const secretHash = process.env.FLW_SECRET_HASH;
+  const signature = req.headers['verif-hash'];
+  
+  if (!signature || signature !== secretHash) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const payload = req.body;
+  
+  if (payload.status === 'successful') {
+    // Process successful payment
+    console.log('Flutterwave payment succeeded:', payload);
+    res.status(200).send('Webhook received');
+  } else {
+    res.status(400).json({ error: 'Payment not successful' });
   }
 });
+
+// Helper Functions
+function generateMatrixPosition(walletAddress) {
+  const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(walletAddress + Date.now()));
+  const level = String.fromCharCode(65 + (parseInt(hash[2], 16) % 5)); // A-E
+  const position = (parseInt(hash[3], 16) % 12) + 1; // 1-12
+  return `${level}${position}`;
+}
 
 // Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`MAVIZ MLM Server running on port ${PORT}`);
 });
