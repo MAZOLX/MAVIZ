@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MAVIZ - MVZx Token Purchase</title>
+  <title>MAVIZ - Buy MVZx Tokens</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="https://i.imgur.com/VbxvCK6.jpeg">
 </head>
@@ -12,90 +12,75 @@
     <img src="https://i.imgur.com/VbxvCK6.jpeg" alt="MAVIZ Logo" class="logo">
     
     <!-- Wallet Connection Section -->
-    <div id="wallet-section">
-      <h2>Get Started</h2>
-      <div class="wallet-buttons">
-        <button id="connect-wallet-btn">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask">
-          Connect Wallet
+    <div class="card">
+      <h2>Wallet Setup</h2>
+      <div class="button-group">
+        <button id="connect-wallet-btn" class="btn-primary">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="">
+          Connect External Wallet
         </button>
-        <button id="create-wallet-btn">
-          <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png" alt="Ethereum">
+        <button id="create-wallet-btn" class="btn-secondary">
+          <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png" alt="">
           Create Platform Wallet
         </button>
       </div>
       <div id="wallet-status">
-        <span class="status-indicator"></span>
-        <span id="status-text">Not connected</span>
+        <div class="status-indicator"></div>
+        <span>Not connected</span>
       </div>
       <div id="wallet-address-display" class="hidden">
-        <span id="wallet-address"></span>
+        <input type="text" id="wallet-address" readonly>
         <button id="copy-address-btn">Copy</button>
       </div>
     </div>
 
-    <!-- Payment Method Selection -->
-    <div id="payment-methods" class="hidden">
-      <h3>Choose Payment Method</h3>
-      <div class="method-buttons">
-        <button id="pay-with-usdt">
-          <img src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="USDT">
-          Buy with USDT
+    <!-- Payment Methods (Initially Hidden) -->
+    <div id="payment-methods" class="card hidden">
+      <h3>Select Payment Method</h3>
+      <div class="button-group">
+        <button id="pay-with-usdt" class="btn-payment">
+          <img src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="">
+          Pay with USDT
         </button>
-        <button id="pay-with-cash">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Nigerian_naira_symbol.png" alt="NGN">
-          Buy with Cash
+        <button id="pay-with-cash" class="btn-payment">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Nigerian_naira_symbol.png" alt="">
+          Pay with Cash
         </button>
       </div>
     </div>
 
     <!-- USDT Purchase Form -->
-    <div id="usdt-form" class="purchase-form hidden">
+    <div id="usdt-form" class="card purchase-form hidden">
       <h3>USDT Purchase</h3>
       <div class="form-group">
-        <label>USDT Amount (Min $3.33 ≈ ₦2000):</label>
-        <input type="number" id="usdt-amount" min="3.33" step="0.01" placeholder="Enter USDT amount">
+        <label for="usdt-amount">USDT Amount (Min 2 USDT)</label>
+        <input type="number" id="usdt-amount" min="2" step="0.01" placeholder="2.00">
       </div>
       <div class="form-group">
-        <label>Equivalent MVZx Tokens:</label>
-        <div id="usdt-tokens">0 MVZx</div>
+        <label>MVZx Tokens:</label>
+        <div class="token-display" id="usdt-tokens">0 MVZx</div>
       </div>
-      <div class="form-group">
-        <label>Receiving Wallet:</label>
-        <select id="receiving-wallet">
-          <option value="platform">Platform Wallet</option>
-          <option value="external">Connected Wallet</option>
-        </select>
-      </div>
-      <button id="confirm-usdt" class="confirm-btn">Confirm & Purchase</button>
+      <button id="confirm-usdt" class="btn-confirm">Confirm Purchase</button>
     </div>
 
     <!-- Cash Purchase Form -->
-    <div id="cash-form" class="purchase-form hidden">
+    <div id="cash-form" class="card purchase-form hidden">
       <h3>Cash Purchase</h3>
       <div class="form-group">
-        <label>Amount in Naira (Min ₦2000):</label>
-        <input type="number" id="cash-amount" min="2000" step="100" placeholder="Enter Naira amount">
+        <label for="cash-amount">Amount (₦ equivalent to min 2 USDT ≈ ₦2000)</label>
+        <input type="number" id="cash-amount" min="2000" step="100" placeholder="2000">
       </div>
       <div class="form-group">
-        <label>Equivalent MVZx Tokens:</label>
-        <div id="cash-tokens">0 MVZx</div>
+        <label>MVZx Tokens:</label>
+        <div class="token-display" id="cash-tokens">0 MVZx</div>
       </div>
-      <div class="payment-options">
-        <label>Payment Method:</label>
-        <select id="cash-method">
-          <option value="card">Debit/Credit Card</option>
-          <option value="bank">Bank Transfer</option>
-          <option value="usd">USD Card</option>
-        </select>
-      </div>
-      <button id="confirm-cash" class="confirm-btn">Confirm & Pay</button>
+      <button id="confirm-cash" class="btn-confirm">Proceed to Payment</button>
     </div>
 
     <!-- Loading Indicator -->
-    <div id="loading" class="hidden">
+    <div id="loading" class="loading-container hidden">
       <div class="loader"></div>
-      <p>Processing your transaction...</p>
+      <p>Processing transaction...</p>
     </div>
   </div>
 
