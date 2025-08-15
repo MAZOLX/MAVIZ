@@ -1,12 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
-  const connectWalletBtn = document.getElementById('connect-wallet-btn');
-  const createWalletBtn = document.getElementById('create-wallet-btn');
+  const connectBtn = document.getElementById('connect-wallet-btn');
+  const createBtn = document.getElementById('create-wallet-btn');
   const walletStatus = document.getElementById('wallet-status');
-  const statusIndicator = document.querySelector('.status-indicator');
-  const statusText = document.getElementById('status-text');
+  const statusIndicator = walletStatus.querySelector('.status-indicator');
   const walletAddressDisplay = document.getElementById('wallet-address-display');
-  const walletAddress = document.getElementById('wallet-address');
+  const walletAddressInput = document.getElementById('wallet-address');
   const copyAddressBtn = document.getElementById('copy-address-btn');
   const paymentMethods = document.getElementById('payment-methods');
   const payWithUsdtBtn = document.getElementById('pay-with-usdt');
@@ -22,9 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const loadingDiv = document.getElementById('loading');
 
   // Constants
-  const TOKEN_PRICE_NGN = 2000;
-  const TOKEN_PRICE_USDT = 3.33;
-  const TOKEN_RATE = TOKEN_PRICE_NGN / TOKEN_PRICE_USDT;
+  const TOKEN_PRICE_USDT = 0.15; // 0.15 USDT per 1 MVZx
+  const MIN_PURCHASE_USDT = 2; // 2 USDT minimum
+  const NAIRA_RATE = 1000; // 1 USDT ≈ ₦1000
   let userWallet = null;
   let platformWallet = null;
 
@@ -32,8 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
   checkPersistedWallet();
 
   // Event Listeners
-  connectWalletBtn.addEventListener('click', connectExternalWallet);
-  createWalletBtn.addEventListener('click', createPlatformWallet);
+  connectBtn.addEventListener('click', connectExternalWallet);
+  createBtn.addEventListener('click', createPlatformWallet);
   copyAddressBtn.addEventListener('click', copyWalletAddress);
   payWithUsdtBtn.addEventListener('click', () => showPurchaseForm('usdt'));
   payWithCashBtn.addEventListener('click', () => showPurchaseForm('cash'));
@@ -42,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
   confirmUsdtBtn.addEventListener('click', processUsdtPurchase);
   confirmCashBtn.addEventListener('click', processCashPurchase);
 
-  // 1. Wallet Connection Functions
+  // 1. Wallet Functions
   async function connectExternalWallet() {
     showLoading();
     
@@ -52,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
           window.location.href = `https://metamask.app.link/dapp/${window.location.host}`;
           return;
         }
-        throw new Error('No Ethereum provider found. Install MetaMask or similar wallet.');
+        throw new Error('Please install MetaMask or another Web3 wallet');
       }
 
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -69,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         persistWallet();
       }
     } catch (error) {
-      showError(`Connection failed: ${error.message}`);
+      showError(error.message);
     } finally {
       hideLoading();
     }
@@ -81,41 +80,35 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       if (!platformWallet) {
         const seed = window.crypto.getRandomValues(new Uint32Array(10)).join('');
-        platformWallet = ethers.Wallet.createRandom({
-          extraEntropy: seed
-        }).then(wallet => {
-          return {
-            address: wallet.address,
-            privateKey: wallet.privateKey
-          };
-        });
+        platformWallet = {
+          address: ethers.utils.getAddress(`0x${ethers.utils.keccak256(ethers.utils.toUtf8Bytes(seed)).substring(0,40)}`),
+          isPlatform: true
+        };
+        
+        updateWalletDisplay();
+        persistWallet();
       }
-      
-      updateWalletDisplay();
-      persistWallet();
     } catch (error) {
-      showError(`Wallet creation failed: ${error.message}`);
+      showError(error.message);
     } finally {
       hideLoading();
     }
   }
 
   function generatePlatformWallet(externalAddress) {
-    // Deterministic platform wallet generation from external address
     const seed = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(externalAddress + Date.now()));
     return {
       address: ethers.utils.getAddress(`0x${seed.substring(0,40)}`),
-      privateKey: `0x${seed.substring(0,64)}`
+      isPlatform: true
     };
   }
 
-  // 2. Purchase Processing
+  // 2. Purchase Functions
   async function processUsdtPurchase() {
     const amount = parseFloat(usdtAmountInput.value);
-    const receivingWallet = document.getElementById('receiving-wallet').value;
     
-    if (amount < TOKEN_PRICE_USDT) {
-      showError(`Minimum purchase is $${TOKEN_PRICE_USDT} (₦${TOKEN_PRICE_NGN})`);
+    if (amount < MIN_PURCHASE_USDT) {
+      showError(`Minimum purchase is ${MIN_PURCHASE_USDT} USDT`);
       return;
     }
 
@@ -123,26 +116,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     try {
       // In production: Implement actual USDT contract call
-      const tokens = amount / TOKEN_PRICE_USDT * 1000; // Assuming 1000 tokens per slot
+      const tokens = amount / TOKEN_PRICE_USDT;
       
-      // Register in MLM system
-      const mlmData = {
-        walletAddress: receivingWallet === 'platform' ? platformWallet.address : userWallet,
-        amount,
-        tokens,
-        paymentMethod: 'usdt',
-        timestamp: Date.now()
-      };
+      // Simulate processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Here you would send mlmData to your backend
-      console.log('USDT Purchase:', mlmData);
-      
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate processing
-      
-      showSuccess(`Success! Purchased ${tokens} MVZx tokens`);
+      showSuccess(`Success! Purchased ${tokens.toFixed(2)} MVZx tokens`);
       resetForms();
     } catch (error) {
-      showError(`Transaction failed: ${error.message}`);
+      showError(error.message);
     } finally {
       hideLoading();
     }
@@ -150,47 +132,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function processCashPurchase() {
     const amount = parseFloat(cashAmountInput.value);
-    const paymentMethod = document.getElementById('cash-method').value;
+    const minNaira = MIN_PURCHASE_USDT * NAIRA_RATE;
     
-    if (amount < TOKEN_PRICE_NGN) {
-      showError(`Minimum purchase is ₦${TOKEN_PRICE_NGN}`);
+    if (amount < minNaira) {
+      showError(`Minimum purchase is ₦${minNaira}`);
       return;
     }
 
     showLoading();
     
     try {
-      const tokens = amount / TOKEN_PRICE_NGN * 1000; // Assuming 1000 tokens per slot
+      const tokens = (amount / NAIRA_RATE) / TOKEN_PRICE_USDT;
       
       FlutterwaveCheckout({
-        public_key: process.env.FLUTTERWAVE_PUBLIC_KEY,
+        public_key: process.env.FLUTTERWAVE_PUBLIC_KEY, // From your Vercel env
         tx_ref: 'MVZX-' + Date.now(),
         amount: amount,
-        currency: paymentMethod === 'usd' ? 'USD' : 'NGN',
-        payment_options: paymentMethod === 'bank' ? 'banktransfer' : 'card',
+        currency: "NGN",
+        payment_options: "card, banktransfer",
         customer: {
           email: "user@example.com", // Should collect in production
           phone_number: "2348012345678",
           name: "MVZx Buyer"
         },
         callback: function(response) {
-          hideLoading();
-          
           if (response.status === "successful") {
-            // Register in MLM system
-            const mlmData = {
-              walletAddress: platformWallet.address,
-              amount,
-              tokens,
-              paymentMethod: 'cash',
-              paymentReference: response.transaction_id,
-              timestamp: Date.now()
-            };
-            
-            // Here you would send mlmData to your backend
-            console.log('Cash Purchase:', mlmData);
-            
-            showSuccess(`Payment successful! ${tokens} MVZx tokens purchased`);
+            showSuccess(`Payment successful! ${tokens.toFixed(2)} MVZx tokens purchased`);
             resetForms();
           } else {
             showError("Payment failed or was cancelled");
@@ -201,31 +168,26 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         customizations: {
           title: "MAVIZ Token Purchase",
-          description: `Purchase of ${tokens} MVZx tokens`,
+          description: `Purchase of ${tokens.toFixed(2)} MVZx tokens`,
           logo: "https://i.imgur.com/VbxvCK6.jpeg"
         }
       });
     } catch (error) {
+      showError(error.message);
       hideLoading();
-      showError(`Payment initialization failed: ${error.message}`);
     }
   }
 
-  // 3. UI Update Functions
+  // 3. UI Functions
   function updateWalletDisplay() {
     const activeWallet = platformWallet || userWallet;
     
     if (activeWallet) {
       statusIndicator.classList.add('connected');
-      statusText.textContent = 'Wallet Connected';
-      walletAddress.textContent = activeWallet.address;
+      walletStatus.querySelector('span').textContent = 'Wallet Connected';
+      walletAddressInput.value = activeWallet.address;
       walletAddressDisplay.classList.remove('hidden');
       paymentMethods.classList.remove('hidden');
-      
-      // Show appropriate form if one is already selected
-      if (usdtForm.classList.contains('hidden') && cashForm.classList.contains('hidden')) {
-        payWithUsdtBtn.click();
-      }
     }
   }
 
@@ -235,46 +197,48 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (type === 'usdt') {
       usdtForm.classList.remove('hidden');
-      updateUsdtTokenCalculation();
     } else {
       cashForm.classList.remove('hidden');
-      updateCashTokenCalculation();
     }
   }
 
   function updateUsdtTokenCalculation() {
     const amount = parseFloat(usdtAmountInput.value) || 0;
-    const tokens = (amount / TOKEN_PRICE_USDT * 1000).toFixed(2);
-    usdtTokensDisplay.textContent = `${tokens} MVZx`;
+    const tokens = amount / TOKEN_PRICE_USDT;
+    usdtTokensDisplay.textContent = `${tokens.toFixed(2)} MVZx`;
   }
 
   function updateCashTokenCalculation() {
     const amount = parseFloat(cashAmountInput.value) || 0;
-    const tokens = (amount / TOKEN_PRICE_NGN * 1000).toFixed(2);
-    cashTokensDisplay.textContent = `${tokens} MVZx`;
+    const usdtValue = amount / NAIRA_RATE;
+    const tokens = usdtValue / TOKEN_PRICE_USDT;
+    cashTokensDisplay.textContent = `${tokens.toFixed(2)} MVZx`;
   }
 
   // 4. Utility Functions
   function checkPersistedWallet() {
-    const savedWallet = localStorage.getItem('mavizPlatformWallet');
+    const savedWallet = localStorage.getItem('mavizWallet');
     if (savedWallet) {
-      platformWallet = JSON.parse(savedWallet);
+      const wallet = JSON.parse(savedWallet);
+      if (wallet.isPlatform) {
+        platformWallet = wallet;
+      } else {
+        userWallet = wallet.address;
+      }
       updateWalletDisplay();
     }
   }
 
   function persistWallet() {
-    if (platformWallet) {
-      localStorage.setItem('mavizPlatformWallet', JSON.stringify(platformWallet));
-    }
+    const walletToSave = platformWallet || { address: userWallet };
+    localStorage.setItem('mavizWallet', JSON.stringify(walletToSave));
   }
 
   function copyWalletAddress() {
-    navigator.clipboard.writeText(walletAddress.textContent);
-    const originalText = copyAddressBtn.textContent;
+    navigator.clipboard.writeText(walletAddressInput.value);
     copyAddressBtn.textContent = 'Copied!';
     setTimeout(() => {
-      copyAddressBtn.textContent = originalText;
+      copyAddressBtn.textContent = 'Copy';
     }, 2000);
   }
 
@@ -307,18 +271,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showSuccess(message) {
     const successDiv = document.createElement('div');
-    successDiv.className = 'success-message';
+    successDiv.className = 'error-message';
+    successDiv.style.color = 'var(--success)';
+    successDiv.style.backgroundColor = '#e8f5e9';
     successDiv.textContent = message;
     document.body.appendChild(successDiv);
     setTimeout(() => successDiv.remove(), 5000);
-  }
-
-  // Handle mobile return from wallet apps
-  if (isMobile()) {
-    window.addEventListener('focus', () => {
-      if (window.ethereum?.selectedAddress && !userWallet) {
-        connectExternalWallet();
-      }
-    });
   }
 });
